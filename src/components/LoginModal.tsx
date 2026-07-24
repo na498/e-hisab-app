@@ -145,19 +145,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <span>লগইন করুন (Login)</span>
             <ArrowRight className="w-4 h-4" />
           </button>
-
-          {/* Initial Default Credentials Hint */}
-          <div className="pt-2 text-center border-t border-slate-100">
-            <p className="text-[11px] text-slate-500 font-medium">
-              🔑 প্রাথমিক ডিফল্ট নম্বর: <span className="font-bold text-slate-800">01810957959</span>
-            </p>
-            <p className="text-[11px] text-slate-500 font-medium">
-              🔒 প্রাথমিক পাসওয়ার্ড: <span className="font-bold text-slate-800">01810957959</span>
-            </p>
-            <p className="text-[10px] text-slate-400 mt-1">
-              (লগইন করার পর সেটিংসে এডমিন অপশন থেকে মোবাইল নম্বর ও পাসওয়ার্ড পরিবর্তন করতে পারবেন)
-            </p>
-          </div>
         </form>
       </div>
     </div>

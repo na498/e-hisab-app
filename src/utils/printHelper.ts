@@ -83,7 +83,7 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
         <style>
           @page {
             size: A4 portrait;
-            margin: 10mm;
+            margin: 8mm;
           }
           @media print {
             body {
@@ -92,19 +92,34 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
               padding: 0 !important;
               margin: 0 !important;
               width: 100% !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            .no-print, button { display: none !important; }
+            .no-print, .print\\:hidden, [data-print-hide="true"], button { display: none !important; }
             #printable-memo, #printable-monthly-sheet {
               width: 100% !important;
               max-width: 100% !important;
               box-shadow: none !important;
+              border: none !important;
+              padding: 0 !important;
             }
           }
           body {
             font-family: 'Noto Sans Bengali', system-ui, -apple-system, sans-serif !important;
             background: white;
             color: black;
-            padding: 15px;
+            padding: 10px;
+          }
+          .no-print, .print\\:hidden, [data-print-hide="true"], button { display: none !important; }
+          #printable-monthly-sheet table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            border: 2px solid #000000 !important;
+          }
+          #printable-monthly-sheet th,
+          #printable-monthly-sheet td {
+            border: 1px solid #000000 !important;
+            color: #000000 !important;
           }
         </style>
       `);
@@ -157,7 +172,7 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
             <style>
               @page {
                 size: ${elementId === 'printable-thermal-memo' ? 'auto' : 'A4 portrait'};
-                margin: ${elementId === 'printable-thermal-memo' ? '0' : '10mm'};
+                margin: ${elementId === 'printable-thermal-memo' ? '0' : '8mm'};
               }
               body {
                 background: white !important;
@@ -165,8 +180,10 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
                 margin: 0 !important;
                 padding: ${elementId === 'printable-thermal-memo' ? '5px' : '0'} !important;
                 font-family: 'Noto Sans Bengali', system-ui, sans-serif !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
-              .no-print, button { display: none !important; }
+              .no-print, .print\\:hidden, [data-print-hide="true"], button { display: none !important; }
               ${elementId === 'printable-thermal-memo' ? `
                 .printer-container { width: 72mm; margin: 0 auto; padding: 5px; }
                 table { width: 100%; border-collapse: collapse; }
@@ -176,6 +193,18 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
                   width: 100% !important;
                   max-width: 100% !important;
                   box-shadow: none !important;
+                  border: none !important;
+                  padding: 0 !important;
+                }
+                #printable-monthly-sheet table {
+                  width: 100% !important;
+                  border-collapse: collapse !important;
+                  border: 2px solid #000000 !important;
+                }
+                #printable-monthly-sheet th,
+                #printable-monthly-sheet td {
+                  border: 1px solid #000000 !important;
+                  color: #000000 !important;
                 }
               `}
             </style>

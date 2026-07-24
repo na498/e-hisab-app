@@ -295,27 +295,40 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
 
         {/* Structured Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-xs sm:text-sm border-2 border-slate-900 text-center font-sans border-collapse">
+          <table
+            className="w-full text-xs sm:text-sm text-center font-sans border-collapse text-slate-950"
+            style={{ border: '2px solid #000000', borderCollapse: 'collapse', width: '100%' }}
+          >
             <thead>
               {/* Header Titles */}
-              <tr className="border-b-2 border-slate-900 bg-slate-100 font-bold text-slate-900">
-                <th className="border-r border-slate-900 py-2.5 px-2 w-32">তারিখ</th>
-                <th className="border-r border-slate-900 py-2.5 px-2 w-24">আয় (৳)</th>
-                <th className="border-r border-slate-900 py-2.5 px-2 w-24">ব্যয় (৳)</th>
-                <th className="border-r border-slate-900 py-2.5 px-2 w-28">ক্যাশ (৳)</th>
-                <th className="border-r border-slate-900 py-2.5 px-3 text-left">খরচের বিবরণ</th>
-                <th className="border-r border-slate-900 py-2.5 px-2 w-28">মন্তব্য</th>
-                <th className="py-2.5 px-1 w-16 print:hidden">অ্যাকশন</th>
+              <tr className="bg-slate-100 font-bold text-slate-950" style={{ backgroundColor: '#f1f5f9' }}>
+                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '15%', fontWeight: 'bold' }}>
+                  তারিখ
+                </th>
+                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '12%', fontWeight: 'bold' }}>
+                  আয় (৳)
+                </th>
+                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '12%', fontWeight: 'bold' }}>
+                  ব্যয় (৳)
+                </th>
+                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '12%', fontWeight: 'bold' }}>
+                  ক্যাশ (৳)
+                </th>
+                <th style={{ border: '1px solid #000000', padding: '8px 8px', textAlign: 'left', width: '34%', fontWeight: 'bold' }}>
+                  খরচের বিবরণ
+                </th>
+                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '15%', fontWeight: 'bold' }}>
+                  মন্তব্য
+                </th>
               </tr>
               {/* Column Numbers Row */}
-              <tr className="border-b border-slate-900 bg-slate-50 text-[11px] font-semibold text-slate-700">
-                <td className="border-r border-slate-900 py-1">০১</td>
-                <td className="border-r border-slate-900 py-1">০২</td>
-                <td className="border-r border-slate-900 py-1">০৩</td>
-                <td className="border-r border-slate-900 py-1">০৪</td>
-                <td className="border-r border-slate-900 py-1 text-left px-3">০৫</td>
-                <td className="border-r border-slate-900 py-1">০৬</td>
-                <td className="py-1 print:hidden">-</td>
+              <tr className="bg-slate-50 text-[11px] font-semibold text-slate-800" style={{ backgroundColor: '#f8fafc' }}>
+                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০১</td>
+                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০২</td>
+                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০৩</td>
+                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০৪</td>
+                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>০৫</td>
+                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০৬</td>
               </tr>
             </thead>
             <tbody>
@@ -324,41 +337,25 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                 dailySummaries.map((dRow) => (
                   <tr
                     key={dRow.date}
-                    className="border-b border-slate-300 font-medium hover:bg-slate-50 text-slate-900"
+                    className="font-medium hover:bg-slate-50 text-slate-950"
                   >
-                    <td className="border-r border-slate-400 py-2.5 px-2 text-left font-bold text-[11px] sm:text-xs text-slate-900">
+                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                       {formatSimpleDate(dRow.date, useBengaliDigits)}
                     </td>
-                    <td className="border-r border-slate-400 py-2.5 px-2 font-black text-emerald-800">
+                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                       {dRow.dayIncome > 0 ? toBengaliNumber(dRow.dayIncome, useBengaliDigits) : ''}
                     </td>
-                    <td className="border-r border-slate-400 py-2.5 px-2 font-black text-rose-800">
+                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                       {dRow.dayExpense > 0 ? toBengaliNumber(dRow.dayExpense, useBengaliDigits) : ''}
                     </td>
-                    <td className="border-r border-slate-400 py-2.5 px-2 font-black text-slate-900">
+                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                       {toBengaliNumber(dRow.runningCash, useBengaliDigits)}
                     </td>
-                    <td className="border-r border-slate-400 py-2.5 px-3 text-left font-bold text-slate-900">
+                    <td style={{ border: '1px solid #000000', padding: '8px 8px', textAlign: 'left', fontWeight: 'bold' }}>
                       {dRow.mainCategoriesText}
                     </td>
-                    <td className="border-r border-slate-400 py-2.5 px-2 text-slate-700 text-xs">
+                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center' }}>
                       -
-                    </td>
-                    <td className="py-2.5 px-1 text-center print:hidden">
-                      <div className="flex items-center justify-center gap-1">
-                        {dRow.txs.length > 0 && (
-                          <button
-                            onClick={() => {
-                              setSelectedMemoTx(dRow.txs[0]);
-                              setIsMemoOpen(true);
-                            }}
-                            className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
-                            title="প্রথম ক্যাশ মেমো"
-                          >
-                            <Receipt className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 ))
@@ -369,48 +366,25 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                   return (
                     <tr
                       key={tx.id || idx}
-                      className="border-b border-slate-300 font-medium hover:bg-slate-50 text-slate-900"
+                      className="font-medium hover:bg-slate-50 text-slate-950"
                     >
-                      <td className="border-r border-slate-400 py-2 px-2 text-left font-bold text-[11px] sm:text-xs text-slate-900">
+                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                         {formatSimpleDate(tx.date, useBengaliDigits)}
                       </td>
-                      <td className="border-r border-slate-400 py-2 px-2 font-black text-emerald-800">
+                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                         {isInc ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
                       </td>
-                      <td className="border-r border-slate-400 py-2 px-2 font-black text-rose-800">
+                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                         {!isInc && tx.amount > 0 ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
                       </td>
-                      <td className="border-r border-slate-400 py-2 px-2 font-black text-slate-900">
+                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
                         {toBengaliNumber(tx.calculatedCash, useBengaliDigits)}
                       </td>
-                      <td className="border-r border-slate-400 py-2 px-3 text-left">
-                        <div className="font-bold text-slate-900">{tx.category}</div>
+                      <td style={{ border: '1px solid #000000', padding: '8px 8px', textAlign: 'left', fontWeight: 'bold' }}>
+                        {tx.category}
                       </td>
-                      <td className="border-r border-slate-400 py-2 px-2 text-slate-700 text-xs">
+                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center' }}>
                         {tx.remarks || tx.customerName || '-'}
-                      </td>
-                      <td className="py-2 px-1 text-center print:hidden">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => {
-                              setSelectedMemoTx(tx);
-                              setIsMemoOpen(true);
-                            }}
-                            className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
-                            title="ক্যাশ মেমো প্রিন্ট"
-                          >
-                            <Receipt className="w-4 h-4" />
-                          </button>
-                          {onDeleteTx && (
-                            <button
-                              onClick={() => setDeleteTxId(tx.id)}
-                              className="p-1 text-rose-600 hover:bg-rose-50 rounded"
-                              title="মুছে ফেলুন (Delete)"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
                       </td>
                     </tr>
                   );
@@ -418,37 +392,38 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
               )}
 
               {/* Total Footer Row */}
-              <tr className="border-t-2 border-slate-900 font-black text-xs sm:text-sm bg-slate-100">
-                <td className="border-r border-slate-900 py-2.5 px-2 text-center">সর্বমোট (TOTAL)</td>
-                <td className="border-r border-slate-900 py-2.5 px-2 text-emerald-900">
+              <tr className="font-bold text-xs sm:text-sm bg-slate-100 text-slate-950" style={{ backgroundColor: '#f1f5f9' }}>
+                <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'black' }}>
+                  সর্বমোট (TOTAL)
+                </td>
+                <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'black' }}>
                   {toBengaliNumber(totalIncome, useBengaliDigits)}
                 </td>
-                <td className="border-r border-slate-900 py-2.5 px-2 text-rose-900">
+                <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'black' }}>
                   {toBengaliNumber(totalExpense, useBengaliDigits)}
                 </td>
-                <td className="border-r border-slate-900 py-2.5 px-2 text-slate-950">
+                <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'black' }}>
                   {toBengaliNumber(finalCash, useBengaliDigits)}
                 </td>
-                <td className="border-r border-slate-900 py-2.5 px-3 text-left">
+                <td style={{ border: '1px solid #000000', padding: '8px 8px', textAlign: 'left', fontWeight: 'black' }}>
                   অবশিষ্ট ক্যাশ জমা
                 </td>
-                <td className="border-r border-slate-900 py-2.5 px-2"></td>
-                <td className="py-2.5 px-1 print:hidden"></td>
+                <td style={{ border: '1px solid #000000', padding: '8px 6px' }}></td>
               </tr>
             </tbody>
           </table>
         </div>
 
         {/* Signature Footer - Matching Page 2 of the uploaded document */}
-        <div className="mt-20 pt-10 flex items-center justify-between font-bold text-xs sm:text-sm text-slate-950">
+        <div className="mt-24 pt-12 flex items-center justify-between font-bold text-xs sm:text-sm text-slate-950">
           <div className="text-center">
-            <div className="w-48 border-b-2 border-slate-900 mb-2 mx-auto"></div>
-            <span>{shopInfo.managerName || 'দোকান পরিচালকের স্বাক্ষর'}</span>
+            <div style={{ width: '220px', borderTop: '2px solid #000000', margin: '0 auto 8px auto' }}></div>
+            <span>{shopInfo.managerName || 'দোকান পরিচালকের নাম'}</span>
           </div>
 
           <div className="text-center">
-            <div className="w-48 border-b-2 border-slate-900 mb-2 mx-auto"></div>
-            <span>{shopInfo.ownerName || 'দোকান মালিকের স্বাক্ষর'}</span>
+            <div style={{ width: '220px', borderTop: '2px solid #000000', margin: '0 auto 8px auto' }}></div>
+            <span>{shopInfo.ownerName || 'মালিকের নাম'}</span>
           </div>
         </div>
       </div>
