@@ -26,12 +26,13 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
     if (elementId === 'printable-thermal-memo') {
       // 80mm Thermal Receipt CSS
       win.document.write(`
+        <base href="${window.location.origin}/">
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
           @page { margin: 0; size: auto; }
           body {
             margin: 0;
-            padding: 0;
+            padding: 5px;
             font-family: 'Noto Sans Bengali', system-ui, -apple-system, sans-serif;
             font-size: 10px;
             line-height: 1.2;
@@ -73,8 +74,8 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
       win.document.write(printContent);
       win.document.write('</div>');
     } else {
-      // Standard Cash Memo (A4 Page Size)
-      let stylesHtml = '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">';
+      // Standard Cash Memo / Monthly Sheet (A4 Page Size)
+      let stylesHtml = `<base href="${window.location.origin}/"><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">`;
       document.querySelectorAll('link[rel="stylesheet"], style').forEach((styleNode) => {
         stylesHtml += styleNode.outerHTML;
       });
@@ -83,15 +84,16 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
         <style>
           @page {
             size: A4 portrait;
-            margin: 8mm;
+            margin: 0 !important; /* Removes browser top/bottom headers & footers (URL, title, page numbers) */
           }
           @media print {
             body {
               background: white !important;
               color: black !important;
-              padding: 0 !important;
+              padding: 8mm 10mm !important;
               margin: 0 !important;
               width: 100% !important;
+              box-sizing: border-box !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
@@ -102,29 +104,45 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
               box-shadow: none !important;
               border: none !important;
               padding: 0 !important;
+              margin: 0 !important;
             }
           }
           body {
             font-family: 'Noto Sans Bengali', system-ui, -apple-system, sans-serif !important;
             background: white;
             color: black;
-            padding: 10px;
+            padding: 8mm 10mm;
+            margin: 0;
+            box-sizing: border-box;
           }
           .no-print, .print\\:hidden, [data-print-hide="true"], button { display: none !important; }
-          #printable-monthly-sheet table {
+          
+          /* Forced table borders for hosted and printed output */
+          table,
+          #printable-monthly-sheet table,
+          #printable-memo table {
             width: 100% !important;
             border-collapse: collapse !important;
+            border-spacing: 0 !important;
             border: 2px solid #000000 !important;
             font-size: 11px !important;
+            margin-top: 4px !important;
+            margin-bottom: 4px !important;
           }
-          #printable-monthly-sheet th,
-          #printable-monthly-sheet td {
+          
+          th, td,
+          #printable-monthly-sheet th, #printable-monthly-sheet td,
+          #printable-memo th, #printable-memo td {
             border: 1px solid #000000 !important;
             color: #000000 !important;
             padding: 4px 5px !important;
-            line-height: 1.2 !important;
+            line-height: 1.25 !important;
+            box-sizing: border-box !important;
           }
-          #printable-monthly-sheet tr {
+          
+          tr,
+          #printable-monthly-sheet tr,
+          #printable-memo tr {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
@@ -173,20 +191,22 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
         <!DOCTYPE html>
         <html lang="bn">
           <head>
+            <base href="${window.location.origin}/">
             <title>${title}</title>
             <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
             ${stylesHtml}
             <style>
               @page {
                 size: ${elementId === 'printable-thermal-memo' ? 'auto' : 'A4 portrait'};
-                margin: ${elementId === 'printable-thermal-memo' ? '0' : '8mm'};
+                margin: 0 !important; /* Removes browser page URL, title, date, page numbers */
               }
               body {
                 background: white !important;
                 color: black !important;
                 margin: 0 !important;
-                padding: ${elementId === 'printable-thermal-memo' ? '5px' : '0'} !important;
-                font-family: 'Noto Sans Bengali', system-ui, sans-serif !important;
+                padding: ${elementId === 'printable-thermal-memo' ? '5px' : '8mm 10mm'} !important;
+                font-family: 'Noto Sans Bengali', system-ui, -apple-system, sans-serif !important;
+                box-sizing: border-box !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
               }
@@ -202,21 +222,25 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
                   box-shadow: none !important;
                   border: none !important;
                   padding: 0 !important;
+                  margin: 0 !important;
                 }
-                #printable-monthly-sheet table {
+                table, #printable-monthly-sheet table, #printable-memo table {
                   width: 100% !important;
                   border-collapse: collapse !important;
+                  border-spacing: 0 !important;
                   border: 2px solid #000000 !important;
                   font-size: 11px !important;
+                  margin-top: 4px !important;
+                  margin-bottom: 4px !important;
                 }
-                #printable-monthly-sheet th,
-                #printable-monthly-sheet td {
+                th, td, #printable-monthly-sheet th, #printable-monthly-sheet td, #printable-memo th, #printable-memo td {
                   border: 1px solid #000000 !important;
                   color: #000000 !important;
                   padding: 4px 5px !important;
-                  line-height: 1.2 !important;
+                  line-height: 1.25 !important;
+                  box-sizing: border-box !important;
                 }
-                #printable-monthly-sheet tr {
+                tr, #printable-monthly-sheet tr, #printable-memo tr {
                   page-break-inside: avoid !important;
                   break-inside: avoid !important;
                 }
