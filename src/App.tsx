@@ -51,7 +51,7 @@ export default function App() {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] =
     useState<boolean>(false);
-  const [isLocked, setIsLocked] = useState<boolean>(settings.pinEnabled);
+  const [isLocked, setIsLocked] = useState<boolean>(Boolean(settings?.pinEnabled));
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return sessionStorage.getItem('e_hisab_admin_authenticated') === 'true';
@@ -84,10 +84,12 @@ export default function App() {
             setTransactions(apiTx);
             saveTransactions(apiTx);
           } else {
-            setTransactions(loadTransactions());
+            const tx = await loadTransactions();
+            setTransactions(tx);
           }
         } else {
-          setTransactions(loadTransactions());
+          const tx = await loadTransactions();
+          setTransactions(tx);
         }
 
         if (duesRes.ok) {
@@ -95,11 +97,13 @@ export default function App() {
           if (Array.isArray(apiDues) && apiDues.length > 0) {
             setCustomerDues(apiDues);
             saveCustomerDues(apiDues);
-          } else {
-            setCustomerDues(loadCustomerDues());
-          }
+            } else {
+              const dues = await loadCustomerDues();
+              setCustomerDues(dues);
+            }
         } else {
-          setCustomerDues(loadCustomerDues());
+          const dues = await loadCustomerDues();
+          setCustomerDues(dues);
         }
 
         if (shopRes.ok) {
@@ -119,8 +123,10 @@ export default function App() {
         }
       } catch (err) {
         console.warn('API connection offline or falling back to localStorage:', err);
-        setTransactions(loadTransactions());
-        setCustomerDues(loadCustomerDues());
+        const tx = await loadTransactions();
+        setTransactions(tx);
+        const dues = await loadCustomerDues();
+        setCustomerDues(dues);
         setShopInfo(loadShopInfo());
         setSettings(loadSettings());
       }
@@ -407,7 +413,7 @@ export default function App() {
         ? {
             ...c,
             promiseDate: newPromiseDate || undefined,
-            history: [newHistoryItem, ...c.history],
+            history: [newHistoryItem, ...(c.history || [])],
           }
         : c
     );
@@ -417,92 +423,104 @@ export default function App() {
 
   // Check customer promise dates and generate/clean up notifications for due/overdue payments
   useEffect(() => {
-    if (customerDues.length === 0) return;
+    if (!customerDues || customerDues.length === 0) return;
 
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // Purge outdated due_alert notifications if customer is fully paid, or promiseDate changed/moved to future
-    const currentAlertNotifs = notifications.filter((n) => {
-      if (n.type !== 'due_alert') return true;
+    setNotifications((prevNotifs) => {
+      const currentList = Array.isArray(prevNotifs) ? prevNotifs : [];
 
-      const cust = customerDues.find(
-        (c) => n.title.includes(c.name) || n.message.includes(c.name)
-      );
-      if (!cust) return false; // customer deleted
-      const remainingDue = cust.totalDue - cust.totalPaid;
-      if (remainingDue <= 0) return false; // due paid off
-      if (!cust.promiseDate) return false; // no promise date
-      if (cust.promiseDate > todayStr) return false; // rescheduled to future date!
+      // Purge outdated due_alert notifications if customer is fully paid, or promiseDate changed/moved to future
+      const validNotifs = currentList.filter((n) => {
+        if (!n || n.type !== 'due_alert') return true;
 
-      // If notification says due today, but promiseDate is no longer today
-      if (n.id.startsWith('due_today_') && cust.promiseDate !== todayStr) {
-        return false;
-      }
-      // If notification says overdue, but promiseDate is no longer overdue
-      if (n.id.startsWith('due_overdue_') && cust.promiseDate >= todayStr) {
-        return false;
-      }
+        const cust = customerDues.find((c) => {
+          if (!c || !c.name) return false;
+          return (
+            (n.title && n.title.includes(c.name)) ||
+            (n.message && n.message.includes(c.name))
+          );
+        });
 
-      return true;
-    });
+        if (!cust) return false; // customer deleted
+        const remainingDue = (cust.totalDue || 0) - (cust.totalPaid || 0);
+        if (remainingDue <= 0) return false; // due paid off
+        if (!cust.promiseDate) return false; // no promise date
+        if (cust.promiseDate > todayStr) return false; // rescheduled to future date!
 
-    const generatedNotifs: AppNotification[] = [];
+        // If notification says due today, but promiseDate is no longer today
+        if (n.id && n.id.startsWith('due_today_') && cust.promiseDate !== todayStr) {
+          return false;
+        }
+        // If notification says overdue, but promiseDate is no longer overdue
+        if (n.id && n.id.startsWith('due_overdue_') && cust.promiseDate >= todayStr) {
+          return false;
+        }
 
-    customerDues.forEach((customer) => {
-      const remainingDue = customer.totalDue - customer.totalPaid;
-      if (remainingDue <= 0) return;
+        return true;
+      });
 
-      if (customer.promiseDate) {
-        if (customer.promiseDate === todayStr) {
-          const notifId = `due_today_${customer.id}_${todayStr}`;
-          if (!currentAlertNotifs.some((n) => n.id === notifId)) {
-            generatedNotifs.push({
-              id: notifId,
-              title: `🔔 আজ পরিশোধের তারিখ: ${customer.name}`,
-              message: `প্রিয় গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা পরিশোধ করার কথা রয়েছে।`,
-              type: 'due_alert',
-              read: false,
-              date: todayStr,
-            });
-          }
-        } else if (customer.promiseDate < todayStr) {
-          const notifId = `due_overdue_${customer.id}_${todayStr}`;
-          if (!currentAlertNotifs.some((n) => n.id === notifId)) {
-            generatedNotifs.push({
-              id: notifId,
-              title: `⚠️ পরিশোধের তারিখ অতিক্রান্ত: ${customer.name}`,
-              message: `গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা জমার তারিখ (${customer.promiseDate}) পার হয়েছে। তাগাদা দেওয়ার পরামর্শ দেওয়া হচ্ছে।`,
-              type: 'due_alert',
-              read: false,
-              date: todayStr,
-            });
+      const newNotifs: AppNotification[] = [];
+
+      customerDues.forEach((customer) => {
+        if (!customer) return;
+        const remainingDue = (customer.totalDue || 0) - (customer.totalPaid || 0);
+        if (remainingDue <= 0) return;
+
+        if (customer.promiseDate) {
+          if (customer.promiseDate === todayStr) {
+            const notifId = `due_today_${customer.id}_${todayStr}`;
+            if (!validNotifs.some((n) => n.id === notifId)) {
+              newNotifs.push({
+                id: notifId,
+                title: `🔔 আজ পরিশোধের তারিখ: ${customer.name}`,
+                message: `প্রিয় গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা পরিশোধ করার কথা রয়েছে।`,
+                type: 'due_alert',
+                read: false,
+                date: todayStr,
+              });
+            }
+          } else if (customer.promiseDate < todayStr) {
+            const notifId = `due_overdue_${customer.id}_${todayStr}`;
+            if (!validNotifs.some((n) => n.id === notifId)) {
+              newNotifs.push({
+                id: notifId,
+                title: `⚠️ পরিশোধের তারিখ অতিক্রান্ত: ${customer.name}`,
+                message: `গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা জমার তারিখ (${customer.promiseDate}) পার হয়েছে। তাগাদা দেওয়ার পরামর্শ দেওয়া হচ্ছে।`,
+                type: 'due_alert',
+                read: false,
+                date: todayStr,
+              });
+            }
           }
         }
-      }
-    });
+      });
 
-    if (
-      currentAlertNotifs.length !== notifications.length ||
-      generatedNotifs.length > 0
-    ) {
-      updateNotificationsState([...generatedNotifs, ...currentAlertNotifs]);
-    }
-  }, [customerDues, updateNotificationsState]);
+      if (validNotifs.length === currentList.length && newNotifs.length === 0) {
+        return currentList;
+      }
+
+      const updated = [...newNotifs, ...validNotifs];
+      saveNotifications(updated);
+      return updated;
+    });
+  }, [customerDues]);
 
   const handleDeleteHistoryItem = (customerId: string, historyId: string) => {
     const updatedDues = customerDues.map((c) => {
       if (c.id === customerId) {
-        const itemToDelete = c.history.find((h) => h.id === historyId);
+        const historyList = c.history || [];
+        const itemToDelete = historyList.find((h) => h.id === historyId);
         if (!itemToDelete) return c;
 
-        const updatedHistory = c.history.filter((h) => h.id !== historyId);
-        let newTotalDue = c.totalDue;
-        let newTotalPaid = c.totalPaid;
+        const updatedHistory = historyList.filter((h) => h.id !== historyId);
+        let newTotalDue = c.totalDue || 0;
+        let newTotalPaid = c.totalPaid || 0;
 
         if (itemToDelete.type === 'due') {
-          newTotalDue = Math.max(0, c.totalDue - itemToDelete.amount);
+          newTotalDue = Math.max(0, (c.totalDue || 0) - itemToDelete.amount);
         } else if (itemToDelete.type === 'payment') {
-          newTotalPaid = Math.max(0, c.totalPaid - itemToDelete.amount);
+          newTotalPaid = Math.max(0, (c.totalPaid || 0) - itemToDelete.amount);
         }
 
         return {

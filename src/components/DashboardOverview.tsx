@@ -48,6 +48,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   customExpenseCategories,
 }) => {
   // Current Totals
+  console.log("transactions =", transactions);
+  console.log("Is Array =", Array.isArray(transactions));
   const totalIncome = transactions.reduce(
     (acc, t) => (t.type === 'income' ? acc + t.amount : acc),
     0

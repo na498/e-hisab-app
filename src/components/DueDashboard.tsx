@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Plus,
@@ -91,6 +91,16 @@ export const DueDashboard: React.FC<DueDashboardProps> = ({
   const [payAmount, setPayAmount] = useState('');
   const [payType, setPayType] = useState<'payment' | 'due'>('payment');
   const [payDesc, setPayDesc] = useState('');
+
+  // Sync selectedCustomer with customerDues state updates
+  useEffect(() => {
+    if (selectedCustomer) {
+      const updated = customerDues.find((c) => c.id === selectedCustomer.id);
+      if (updated) {
+        setSelectedCustomer(updated);
+      }
+    }
+  }, [customerDues]);
 
   // Filtered
   const filteredCustomers = customerDues.filter(
@@ -814,7 +824,7 @@ export const DueDashboard: React.FC<DueDashboardProps> = ({
               </h4>
 
               <div className="space-y-2">
-                {selectedCustomer.history.length === 0 ? (
+                {(!selectedCustomer.history || selectedCustomer.history.length === 0) ? (
                   <p className="text-xs text-slate-400 py-6 text-center">
                     কোনো হিস্ট্রি রেকর্ডিং পাওয়া যায়নি।
                   </p>
