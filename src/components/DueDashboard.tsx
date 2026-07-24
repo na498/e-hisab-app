@@ -13,6 +13,7 @@ import {
   Trash2,
   Receipt,
   Clock,
+  Calendar,
 } from 'lucide-react';
 import { CustomerDue, DueHistory, ShopInfo } from '../types';
 import {
@@ -36,7 +37,7 @@ interface DueDashboardProps {
   ) => void;
   onDeleteCustomer: (id: string) => void;
   onDeleteHistoryItem?: (customerId: string, historyId: string) => void;
-  onUpdatePromiseDate?: (customerId: string, promiseDate: string) => void;
+  onUpdatePromiseDate?: (customerId: string, promiseDate: string, reason?: string) => void;
   useBengaliDigits: boolean;
 }
 
@@ -60,6 +61,7 @@ export const DueDashboard: React.FC<DueDashboardProps> = ({
   // Promise Date Modal state
   const [promiseModalCust, setPromiseModalCust] = useState<CustomerDue | null>(null);
   const [promiseDateValue, setPromiseDateValue] = useState<string>('');
+  const [promiseReason, setPromiseReason] = useState<string>('');
 
   // Deletion modals state
   const [deleteCustId, setDeleteCustId] = useState<string | null>(null);
@@ -135,8 +137,9 @@ export const DueDashboard: React.FC<DueDashboardProps> = ({
   const handleSavePromiseDate = (e: React.FormEvent) => {
     e.preventDefault();
     if (promiseModalCust && onUpdatePromiseDate) {
-      onUpdatePromiseDate(promiseModalCust.id, promiseDateValue);
+      onUpdatePromiseDate(promiseModalCust.id, promiseDateValue, promiseReason);
       setPromiseModalCust(null);
+      setPromiseReason('');
     }
   };
 
@@ -362,6 +365,7 @@ export const DueDashboard: React.FC<DueDashboardProps> = ({
                             onClick={() => {
                               setPromiseModalCust(customer);
                               setPromiseDateValue('');
+                              setPromiseReason('');
                             }}
                             className="text-indigo-600 hover:text-indigo-800 font-bold underline cursor-pointer"
                           >
@@ -399,6 +403,7 @@ export const DueDashboard: React.FC<DueDashboardProps> = ({
                           onClick={() => {
                             setPromiseModalCust(customer);
                             setPromiseDateValue(customer.promiseDate || '');
+                            setPromiseReason('');
                           }}
                           className="text-[11px] underline ml-1 hover:opacity-80 cursor-pointer shrink-0"
                         >
@@ -600,14 +605,24 @@ export const DueDashboard: React.FC<DueDashboardProps> = ({
                   গ্রাহকের নাম: <span className="text-emerald-800">{promiseModalCust.name}</span>
                 </label>
                 <p className="text-xs text-slate-500 mb-3">
-                  এই তারিখে গ্রাহক বাকি টাকা পরিশোধ করার কথা দিলে নির্বাচন করুন। নির্দিষ্ট দিনে সিস্টেমে স্বয়ংক্রিয় নোটিফিকেশন আসবে।
+                  এই তারিখে গ্রাহক বাকি টাকা পরিশোধ করার কথা দিলে নির্বাচন করুন। তারিখ পরিবর্তন করলে সিস্টেমে নোটিফিকেশন আপডেট হবে এবং হিস্টোরিতে সংরক্ষিত থাকবে।
                 </p>
                 <input
                   type="date"
                   required
                   value={promiseDateValue}
                   onChange={(e) => setPromiseDateValue(e.target.value)}
-                  className="w-full text-base bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-slate-900"
+                  className="w-full text-base bg-slate-50 border border-slate-300 rounded-xl p-3 font-bold text-slate-900 mb-3"
+                />
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  কারণ / মন্তব্য (ঐচ্ছিক):
+                </label>
+                <input
+                  type="text"
+                  placeholder="যেমন: ২ দিন পর পরিশোধ করার সময় চেয়েছেন"
+                  value={promiseReason}
+                  onChange={(e) => setPromiseReason(e.target.value)}
+                  className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium text-slate-800"
                 />
               </div>
 
@@ -804,47 +819,64 @@ export const DueDashboard: React.FC<DueDashboardProps> = ({
                     কোনো হিস্ট্রি রেকর্ডিং পাওয়া যায়নি।
                   </p>
                 ) : (
-                  selectedCustomer.history.map((h) => (
-                    <div
-                      key={h.id}
-                      className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <div className="font-bold text-slate-900">
-                          {h.description}
+                  selectedCustomer.history.map((h) => {
+                    const isPayment = h.type === 'payment';
+                    const isReschedule = h.type === 'reschedule';
+                    return (
+                      <div
+                        key={h.id}
+                        className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+                          isReschedule
+                            ? 'bg-blue-50/70 border-blue-200/90'
+                            : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                            {isReschedule && (
+                              <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            )}
+                            <span>{h.description}</span>
+                          </div>
+                          <div className="text-slate-500 text-[11px] font-medium mt-0.5 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            <span>{formatSimpleDate(h.date, useBengaliDigits)}</span>
+                          </div>
                         </div>
-                        <div className="text-slate-500 text-[11px] font-medium mt-0.5 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-slate-400" />
-                          <span>{formatSimpleDate(h.date, useBengaliDigits)}</span>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`font-black text-sm ${
-                            h.type === 'payment' ? 'text-emerald-700' : 'text-rose-700'
-                          }`}
-                        >
-                          {h.type === 'payment' ? '+' : '-'}
-                          {formatCurrency(h.amount, useBengaliDigits)}
+                        <div className="flex items-center gap-2">
+                          {isReschedule ? (
+                            <span className="bg-blue-100 text-blue-800 font-extrabold px-2 py-0.5 rounded-md text-[10px] whitespace-nowrap">
+                              তারিখ পরিবর্তন
+                            </span>
+                          ) : (
+                            <div
+                              className={`font-black text-sm ${
+                                isPayment ? 'text-emerald-700' : 'text-rose-700'
+                              }`}
+                            >
+                              {isPayment ? '+' : '-'}
+                              {formatCurrency(h.amount, useBengaliDigits)}
+                            </div>
+                          )}
+                          {onDeleteHistoryItem && (
+                            <button
+                              onClick={() =>
+                                setDeleteHistData({
+                                  customerId: selectedCustomer.id,
+                                  historyId: h.id,
+                                })
+                              }
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                              title="হিস্ট্রি আইটেম ডিলিট"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
-                        {onDeleteHistoryItem && (
-                          <button
-                            onClick={() =>
-                              setDeleteHistData({
-                                customerId: selectedCustomer.id,
-                                historyId: h.id,
-                              })
-                            }
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                            title="হিস্ট্রি আইটেম ডিলিট"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

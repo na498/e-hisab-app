@@ -250,16 +250,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               })}
             </div>
           </div>
-
-          <div className="pt-3 mt-4 border-t border-slate-100 flex justify-end">
-            <button
-              onClick={onOpenNewTxModal}
-              className="text-xs font-bold text-emerald-800 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 transition-colors flex items-center gap-1"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>নতুন এন্ট্রি তৈরি করুন</span>
-            </button>
-          </div>
         </div>
 
         {/* Top Due Customers List (5 cols) */}

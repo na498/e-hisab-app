@@ -58,7 +58,7 @@ export interface DueHistory {
   date: string;
   time?: string;
   amount: number;
-  type: 'due' | 'payment'; // 'due' = বাকি বৃদ্ধি, 'payment' = বাকি পরিশোধ
+  type: 'due' | 'payment' | 'reschedule'; // 'due' = বাকি বৃদ্ধি, 'payment' = বাকি পরিশোধ, 'reschedule' = তারিখ পরিবর্তন
   description: string;
 }
 

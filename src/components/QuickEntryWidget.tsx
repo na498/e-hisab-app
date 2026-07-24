@@ -146,17 +146,6 @@ export const QuickEntryWidget: React.FC<QuickEntryWidgetProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {onOpenSettings && (
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className="flex items-center gap-1 text-xs text-slate-700 hover:text-emerald-800 font-bold bg-slate-100 hover:bg-emerald-50 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-              title="দ্রুত এন্ট্রি কার্ডসমূহ এডিট করতে সেটিংস খুলুন"
-            >
-              <Settings className="w-3.5 h-3.5 text-slate-600" />
-              <span>বাটন কার্ড এডিট</span>
-            </button>
-          )}
           {successMsg && (
             <div className="flex items-center gap-1.5 bg-emerald-100 border border-emerald-300 text-emerald-800 px-3 py-1 rounded-full text-xs font-semibold animate-fade-in">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />

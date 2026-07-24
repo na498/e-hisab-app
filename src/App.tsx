@@ -11,10 +11,12 @@ import {
   loadNotifications,
   saveNotifications,
   getLastSyncTime,
+  resetAllToDefault,
 } from './utils/storage';
 import {
   Transaction,
   CustomerDue,
+  DueHistory,
   ShopInfo,
   UserSettings,
   AppNotification,
@@ -65,35 +67,74 @@ export default function App() {
     sessionStorage.removeItem('e_hisab_admin_authenticated');
   };
 
-  // Load Initial Data directly using storage helpers (Supabase / Local)
+  // Load Initial Data from REST API (if backend server is active) or local storage
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchApiData = async () => {
       try {
-        const txs = await loadTransactions();
-        setTransactions(txs || []);
+        const [txRes, duesRes, shopRes, setRes] = await Promise.all([
+          fetch('/api/transactions'),
+          fetch('/api/dues'),
+          fetch('/api/shop-info'),
+          fetch('/api/settings'),
+        ]);
 
-        const dues = await loadCustomerDues();
-        setCustomerDues(dues || []);
+        if (txRes.ok) {
+          const apiTx = await txRes.json();
+          if (Array.isArray(apiTx) && apiTx.length > 0) {
+            setTransactions(apiTx);
+            saveTransactions(apiTx);
+          } else {
+            setTransactions(loadTransactions());
+          }
+        } else {
+          setTransactions(loadTransactions());
+        }
 
-        const shop = loadShopInfo();
-        setShopInfo(shop);
+        if (duesRes.ok) {
+          const apiDues = await duesRes.json();
+          if (Array.isArray(apiDues) && apiDues.length > 0) {
+            setCustomerDues(apiDues);
+            saveCustomerDues(apiDues);
+          } else {
+            setCustomerDues(loadCustomerDues());
+          }
+        } else {
+          setCustomerDues(loadCustomerDues());
+        }
 
-        const set = loadSettings();
-        setSettings(set);
-        setIsLocked(set.pinEnabled);
+        if (shopRes.ok) {
+          const apiShop = await shopRes.json();
+          if (apiShop && apiShop.shopName) {
+            setShopInfo(apiShop);
+            saveShopInfo(apiShop);
+          }
+        }
+
+        if (setRes.ok) {
+          const apiSet = await setRes.json();
+          if (apiSet && typeof apiSet.useBengaliDigits === 'boolean') {
+            setSettings(apiSet);
+            saveSettings(apiSet);
+          }
+        }
       } catch (err) {
-        console.warn('Data load error:', err);
+        console.warn('API connection offline or falling back to localStorage:', err);
+        setTransactions(loadTransactions());
+        setCustomerDues(loadCustomerDues());
+        setShopInfo(loadShopInfo());
+        setSettings(loadSettings());
       }
     };
 
-    fetchInitialData();
+    fetchApiData();
     setNotifications(loadNotifications());
+    setIsLocked(settings.pinEnabled);
   }, []);
 
   // Window Online/Offline listener
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOffline(false);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -104,27 +145,53 @@ export default function App() {
     };
   }, []);
 
-  // Save Helpers (updates local state + Supabase storage)
-  const updateTransactions = useCallback(async (newTxList: Transaction[]) => {
+  // Save Helpers (updates local storage + background REST sync)
+  const updateTransactions = useCallback((newTxList: Transaction[]) => {
     setTransactions(newTxList);
+    saveTransactions(newTxList);
     setLastSyncTime(new Date().toISOString());
-    await saveTransactions(newTxList);
+
+    // Sync API
+    fetch('/api/transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTxList),
+    }).catch((e) => console.warn('Transaction API sync error:', e));
   }, []);
 
-  const updateCustomerDues = useCallback(async (newDues: CustomerDue[]) => {
+  const updateCustomerDues = useCallback((newDues: CustomerDue[]) => {
     setCustomerDues(newDues);
+    saveCustomerDues(newDues);
     setLastSyncTime(new Date().toISOString());
-    await saveCustomerDues(newDues);
+
+    // Sync API
+    fetch('/api/dues', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newDues),
+    }).catch((e) => console.warn('Dues API sync error:', e));
   }, []);
 
   const updateShopInfoState = useCallback((info: ShopInfo) => {
     setShopInfo(info);
     saveShopInfo(info);
+
+    fetch('/api/shop-info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(info),
+    }).catch((e) => console.warn('ShopInfo API sync error:', e));
   }, []);
 
   const updateSettingsState = useCallback((set: UserSettings) => {
     setSettings(set);
     saveSettings(set);
+
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(set),
+    }).catch((e) => console.warn('Settings API sync error:', e));
   }, []);
 
   const updateNotificationsState = useCallback((notifs: AppNotification[]) => {
@@ -133,25 +200,20 @@ export default function App() {
   }, []);
 
   // Handlers for Transactions
-  const handleSaveTransaction = async (
+  const handleSaveTransaction = (
     txData: Omit<Transaction, 'id' | 'createdAt'>
   ) => {
-    const formattedTxData = {
-      ...txData,
-      amount: Number(txData.amount) || 0,
-    };
-
     if (editingTx) {
       // Edit
       const updated = transactions.map((t) =>
         t.id === editingTx.id
           ? {
               ...t,
-              ...formattedTxData,
+              ...txData,
             }
           : t
       );
-      await updateTransactions(updated);
+      updateTransactions(updated);
       setEditingTx(null);
     } else {
       // New
@@ -165,15 +227,14 @@ export default function App() {
       const newTx: Transaction = {
         id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         time: timeStr,
-        ...formattedTxData,
+        ...txData,
         createdAt: Date.now(),
       };
-
-      await updateTransactions([newTx, ...transactions]);
+      updateTransactions([...transactions, newTx]);
     }
   };
 
-  const handleQuickAddTransaction = async (
+  const handleQuickAddTransaction = (
     type: TransactionType,
     amount: number,
     category: CategoryType,
@@ -196,23 +257,22 @@ export default function App() {
       time: timeStr,
       displayDate: displayDateStr,
       type,
-      amount: Number(amount) || 0,
+      amount,
       category,
       description,
       createdAt: Date.now(),
     };
 
-    // 🚀 Async await দিয়ে নতুন লেনদেনটি তালিকার শুরুতে সেভ করা হচ্ছে
-    await updateTransactions([newTx, ...transactions]);
+    updateTransactions([...transactions, newTx]);
   };
 
-  const handleDeleteTransaction = async (id: string) => {
+  const handleDeleteTransaction = (id: string) => {
     const filtered = transactions.filter((t) => t.id !== id);
-    await updateTransactions(filtered);
+    updateTransactions(filtered);
   };
 
   // Handlers for Customer Dues
-  const handleAddCustomer = async (
+  const handleAddCustomer = (
     customerData: Omit<CustomerDue, 'id' | 'history' | 'lastUpdated'>
   ) => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -228,16 +288,16 @@ export default function App() {
                 date: todayStr,
                 amount: customerData.totalDue,
                 type: 'due',
-                description: 'প্রাথমিক বকেয়া বাকি',
+                description: 'প্রাথমিক বকেয়া বাকি',
               },
             ]
           : [],
     };
 
-    await updateCustomerDues([...customerDues, newCustomer]);
+    updateCustomerDues([...customerDues, newCustomer]);
   };
 
-  const handleRecordPayment = async (
+  const handleRecordPayment = (
     customerId: string,
     amount: number,
     type: 'due' | 'payment',
@@ -279,9 +339,9 @@ export default function App() {
       return c;
     });
 
-    await updateCustomerDues(updatedDues);
+    updateCustomerDues(updatedDues);
 
-    // If payment collected, automatically log income into cash ledger
+    // If payment collected, automatically log income into cash ledger under "বাকি আদায়"
     if (type === 'payment') {
       const targetCustomer = customerDues.find((c) => c.id === customerId);
       const customerName = targetCustomer ? targetCustomer.name : '';
@@ -294,34 +354,98 @@ export default function App() {
         displayDate: displayDateStr,
         type: 'income',
         amount,
-        category: 'বাকি আদায়',
-        description: `বাকি আদায়: ${description}`,
+        category: 'বাকি আদায়',
+        description: `বাকি আদায়: ${description}`,
         customerName,
         customerPhone,
         createdAt: Date.now(),
       };
 
-      await updateTransactions([autoIncomeTx, ...transactions]);
+      updateTransactions([...transactions, autoIncomeTx]);
     }
   };
 
-  const handleDeleteCustomer = async (id: string) => {
+  const handleDeleteCustomer = (id: string) => {
     const filtered = customerDues.filter((c) => c.id !== id);
-    await updateCustomerDues(filtered);
+    updateCustomerDues(filtered);
   };
 
-  const handleUpdateCustomerPromiseDate = async (customerId: string, promiseDate: string) => {
+  const handleUpdateCustomerPromiseDate = (
+    customerId: string,
+    newPromiseDate: string,
+    reason?: string
+  ) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const targetCust = customerDues.find((c) => c.id === customerId);
+    if (!targetCust) return;
+
+    const oldPromiseDate = targetCust.promiseDate;
+    if (oldPromiseDate === newPromiseDate) return;
+
+    const oldDateLabel = oldPromiseDate
+      ? formatShortMonthDay(oldPromiseDate, settings.useBengaliDigits)
+      : 'কোনো তারিখ ছিল না';
+    const newDateLabel = newPromiseDate
+      ? formatShortMonthDay(newPromiseDate, settings.useBengaliDigits)
+      : 'তারিখ বাদ দেওয়া হয়েছে';
+
+    const reasonSuffix = reason && reason.trim() ? ` (${reason.trim()})` : '';
+    const historyDesc = newPromiseDate
+      ? `পরিশোধের তারিখ পরিবর্তন: ${oldDateLabel} ➔ ${newDateLabel}${reasonSuffix}`
+      : `পরিশোধের তারিখ বাতিল করা হয়েছে: (${oldDateLabel})${reasonSuffix}`;
+
+    const newHistoryItem: DueHistory = {
+      id: `h_${Date.now()}`,
+      date: todayStr,
+      amount: 0,
+      type: 'reschedule',
+      description: historyDesc,
+    };
+
     const updated = customerDues.map((c) =>
-      c.id === customerId ? { ...c, promiseDate } : c
+      c.id === customerId
+        ? {
+            ...c,
+            promiseDate: newPromiseDate || undefined,
+            history: [newHistoryItem, ...c.history],
+          }
+        : c
     );
-    await updateCustomerDues(updated);
+
+    updateCustomerDues(updated);
   };
 
-  // Check customer promise dates and generate notifications
+  // Check customer promise dates and generate/clean up notifications for due/overdue payments
   useEffect(() => {
     if (customerDues.length === 0) return;
 
     const todayStr = new Date().toISOString().split('T')[0];
+
+    // Purge outdated due_alert notifications if customer is fully paid, or promiseDate changed/moved to future
+    const currentAlertNotifs = notifications.filter((n) => {
+      if (n.type !== 'due_alert') return true;
+
+      const cust = customerDues.find(
+        (c) => n.title.includes(c.name) || n.message.includes(c.name)
+      );
+      if (!cust) return false; // customer deleted
+      const remainingDue = cust.totalDue - cust.totalPaid;
+      if (remainingDue <= 0) return false; // due paid off
+      if (!cust.promiseDate) return false; // no promise date
+      if (cust.promiseDate > todayStr) return false; // rescheduled to future date!
+
+      // If notification says due today, but promiseDate is no longer today
+      if (n.id.startsWith('due_today_') && cust.promiseDate !== todayStr) {
+        return false;
+      }
+      // If notification says overdue, but promiseDate is no longer overdue
+      if (n.id.startsWith('due_overdue_') && cust.promiseDate >= todayStr) {
+        return false;
+      }
+
+      return true;
+    });
+
     const generatedNotifs: AppNotification[] = [];
 
     customerDues.forEach((customer) => {
@@ -331,38 +455,41 @@ export default function App() {
       if (customer.promiseDate) {
         if (customer.promiseDate === todayStr) {
           const notifId = `due_today_${customer.id}_${todayStr}`;
-          if (!notifications.some((n) => n.id === notifId)) {
+          if (!currentAlertNotifs.some((n) => n.id === notifId)) {
             generatedNotifs.push({
               id: notifId,
               title: `🔔 আজ পরিশোধের তারিখ: ${customer.name}`,
-              message: `প্রিয় গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা পরিশোধ করার কথা রয়েছে।`,
+              message: `প্রিয় গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা পরিশোধ করার কথা রয়েছে।`,
               type: 'due_alert',
               read: false,
-              date: new Date().toISOString().split('T')[0],
+              date: todayStr,
             });
           }
         } else if (customer.promiseDate < todayStr) {
           const notifId = `due_overdue_${customer.id}_${todayStr}`;
-          if (!notifications.some((n) => n.id === notifId)) {
+          if (!currentAlertNotifs.some((n) => n.id === notifId)) {
             generatedNotifs.push({
               id: notifId,
               title: `⚠️ পরিশোধের তারিখ অতিক্রান্ত: ${customer.name}`,
-              message: `গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা জমার তারিখ (${customer.promiseDate}) পার হয়েছে। তাগাদা দেওয়ার পরামর্শ দেওয়া হচ্ছে।`,
+              message: `গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা জমার তারিখ (${customer.promiseDate}) পার হয়েছে। তাগাদা দেওয়ার পরামর্শ দেওয়া হচ্ছে।`,
               type: 'due_alert',
               read: false,
-              date: new Date().toISOString().split('T')[0],
+              date: todayStr,
             });
           }
         }
       }
     });
 
-    if (generatedNotifs.length > 0) {
-      updateNotificationsState([...generatedNotifs, ...notifications]);
+    if (
+      currentAlertNotifs.length !== notifications.length ||
+      generatedNotifs.length > 0
+    ) {
+      updateNotificationsState([...generatedNotifs, ...currentAlertNotifs]);
     }
-  }, [customerDues, notifications, updateNotificationsState]);
+  }, [customerDues, updateNotificationsState]);
 
-  const handleDeleteHistoryItem = async (customerId: string, historyId: string) => {
+  const handleDeleteHistoryItem = (customerId: string, historyId: string) => {
     const updatedDues = customerDues.map((c) => {
       if (c.id === customerId) {
         const itemToDelete = c.history.find((h) => h.id === historyId);
@@ -388,7 +515,7 @@ export default function App() {
       return c;
     });
 
-    await updateCustomerDues(updatedDues);
+    updateCustomerDues(updatedDues);
   };
 
   const handleImportFullBackup = (data: {
