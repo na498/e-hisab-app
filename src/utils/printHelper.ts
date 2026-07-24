@@ -106,6 +106,13 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
               padding: 0 !important;
               margin: 0 !important;
             }
+            #printable-monthly-sheet {
+              display: flex !important;
+              flex-direction: column !important;
+              justify-content: space-between !important;
+              min-height: 275mm !important;
+              box-sizing: border-box !important;
+            }
           }
           body {
             font-family: 'Noto Sans Bengali', system-ui, -apple-system, sans-serif !important;
@@ -125,6 +132,7 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
             border-collapse: collapse !important;
             border-spacing: 0 !important;
             border: 2px solid #000000 !important;
+            empty-cells: show !important;
             font-size: 11px !important;
             margin-top: 4px !important;
             margin-bottom: 4px !important;
@@ -138,6 +146,7 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
             padding: 4px 5px !important;
             line-height: 1.25 !important;
             box-sizing: border-box !important;
+            empty-cells: show !important;
           }
           
           tr,
@@ -224,11 +233,19 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
                   padding: 0 !important;
                   margin: 0 !important;
                 }
+                #printable-monthly-sheet {
+                  display: flex !important;
+                  flex-direction: column !important;
+                  justify-content: space-between !important;
+                  min-height: 275mm !important;
+                  box-sizing: border-box !important;
+                }
                 table, #printable-monthly-sheet table, #printable-memo table {
                   width: 100% !important;
                   border-collapse: collapse !important;
                   border-spacing: 0 !important;
                   border: 2px solid #000000 !important;
+                  empty-cells: show !important;
                   font-size: 11px !important;
                   margin-top: 4px !important;
                   margin-bottom: 4px !important;
@@ -239,6 +256,7 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
                   padding: 4px 5px !important;
                   line-height: 1.25 !important;
                   box-sizing: border-box !important;
+                  empty-cells: show !important;
                 }
                 tr, #printable-monthly-sheet tr, #printable-memo tr {
                   page-break-inside: avoid !important;

@@ -57,6 +57,9 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
   // View mode: 'daily' (grouped by day) or 'detailed' (every transaction)
   const [viewMode, setViewMode] = useState<'daily' | 'detailed'>('daily');
 
+  // Option to show all days of the month (1 to 30/31) or only days with transactions
+  const [showAllDaysInMonth, setShowAllDaysInMonth] = useState<boolean>(true);
+
   // Month label helper
   const monthNameMap: Record<string, string> = {
     '01': 'জানুয়ারি',
@@ -99,11 +102,26 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
       dateMap[dKey].push(tx);
     });
 
-    const sortedDates = Object.keys(dateMap).sort();
+    let sortedDates: string[] = [];
+
+    if (showAllDaysInMonth && selectedMonth && selectedMonth !== 'all' && /^\d{4}-\d{2}$/.test(selectedMonth)) {
+      const [yearStr, monthStr] = selectedMonth.split('-');
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10); // 1-12
+      const daysInMonth = new Date(year, month, 0).getDate(); // Total days in month
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dayFormatted = String(d).padStart(2, '0');
+        sortedDates.push(`${selectedMonth}-${dayFormatted}`);
+      }
+    } else {
+      sortedDates = Object.keys(dateMap).sort();
+    }
+
     let runningCash = 0;
 
     return sortedDates.map((dKey) => {
-      const dayTxs = dateMap[dKey];
+      const dayTxs = dateMap[dKey] || [];
       let dayIncome = 0;
       let dayExpense = 0;
       const catSet = new Set<string>();
@@ -121,7 +139,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
 
       runningCash += dayIncome - dayExpense;
 
-      const mainCategoriesText = Array.from(catSet).join(', ') || 'অন্যান্য';
+      const mainCategoriesText = catSet.size > 0 ? Array.from(catSet).join(', ') : '-';
 
       return {
         date: dKey,
@@ -133,7 +151,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
         txs: dayTxs,
       };
     });
-  }, [monthTransactions]);
+  }, [monthTransactions, selectedMonth, showAllDaysInMonth]);
 
   // Recalculate running cash for individual detailed transactions
   const transactionsWithRunningCash = useMemo(() => {
@@ -225,7 +243,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                     : 'text-slate-700 hover:text-slate-900'
                 }`}
               >
-                দৈনিক সারসংক্ষেপ (ডিফল্ট)
+                দৈনিক সারসংক্ষেপ
               </button>
               <button
                 type="button"
@@ -236,10 +254,29 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                     : 'text-slate-700 hover:text-slate-900'
                 }`}
               >
-                একক বিস্তারিত এন্ট্রি
+                একক বিস্তারিত
               </button>
             </div>
           </div>
+
+          {viewMode === 'daily' && selectedMonth !== 'all' && (
+            <div className="ml-2 pl-3 border-l border-slate-200 hidden md:block">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-0.5">
+                তারিখ ফিল্টার
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowAllDaysInMonth(!showAllDaysInMonth)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                  showAllDaysInMonth
+                    ? 'bg-indigo-700 text-white border-indigo-800 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {showAllDaysInMonth ? '✓ পুরো মাস (১-৩১ তারিখ)' : 'শুধুমাত্র লেনদেনের দিন'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -276,139 +313,141 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
 
       {/* Official Monthly Accounting Sheet Document Container */}
       <div
-        className="bg-white rounded-2xl shadow-xl border border-slate-300 p-6 sm:p-10 max-w-5xl mx-auto print:p-0 print:shadow-none print:border-none print:max-w-none text-slate-900 relative"
+        className="bg-white rounded-2xl shadow-xl border border-slate-300 p-6 sm:p-10 max-w-5xl mx-auto print:p-0 print:shadow-none print:border-none print:max-w-none text-slate-900 relative flex flex-col justify-between min-h-[265mm]"
         id="printable-monthly-sheet"
       >
-        {/* Document Header */}
-        <div className="text-center space-y-2 mb-6 border-b-2 border-slate-900 pb-5">
-          <h1 className="text-2xl sm:text-3xl font-black font-serif text-slate-950 tracking-tight">
-            {shopInfo.shopName || 'ই-সেন্টার'} এর মাসিক আয় ব্যয়ের বিবরণী
-          </h1>
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs sm:text-sm font-bold text-slate-800">
-            <span>শাখা অফিসের নাম : <strong>{shopInfo.branchName || 'চাম্পাফুল'}</strong></span>
-            <span className="hidden sm:inline text-slate-400">|</span>
-            <span>
-              মাসের নাম : <strong>{getMonthLabel(selectedMonth)}</strong>
-            </span>
+        <div>
+          {/* Document Header */}
+          <div className="text-center space-y-2 mb-6 border-b-2 border-slate-900 pb-5">
+            <h1 className="text-2xl sm:text-3xl font-black font-serif text-slate-950 tracking-tight">
+              {shopInfo.shopName || 'ই-সেন্টার'} এর মাসিক আয় ব্যয়ের বিবরণী
+            </h1>
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs sm:text-sm font-bold text-slate-800">
+              <span>শাখা অফিসের নাম : <strong>{shopInfo.branchName || 'চাম্পাফুল'}</strong></span>
+              <span className="hidden sm:inline text-slate-400">|</span>
+              <span>
+                মাসের নাম : <strong>{getMonthLabel(selectedMonth)}</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Structured Table */}
+          <div className="overflow-x-auto">
+            <table
+              className="w-full text-xs sm:text-sm text-center font-sans border-collapse text-slate-950"
+              style={{ border: '2px solid #000000', borderCollapse: 'collapse', width: '100%', emptyCells: 'show' }}
+            >
+              <thead>
+                {/* Header Titles */}
+                <tr className="bg-slate-100 font-bold text-slate-950" style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #000000' }}>
+                  <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '15%', fontWeight: 'bold' }}>
+                    তারিখ
+                  </th>
+                  <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
+                    আয় (৳)
+                  </th>
+                  <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
+                    ব্যয় (৳)
+                  </th>
+                  <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
+                    ক্যাশ (৳)
+                  </th>
+                  <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', width: '35%', fontWeight: 'bold' }}>
+                    খরচের বিবরণ
+                  </th>
+                  <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '14%', fontWeight: 'bold' }}>
+                    মন্তব্য
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {viewMode === 'daily' ? (
+                  /* Daily Grouped Rows (1 row per date, main subjects only) */
+                  dailySummaries.map((dRow) => (
+                    <tr
+                      key={dRow.date}
+                      className="font-medium text-slate-950"
+                      style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '1px solid #000000' }}
+                    >
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                        {formatSimpleDate(dRow.date, useBengaliDigits)}
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                        {dRow.dayIncome > 0 ? toBengaliNumber(dRow.dayIncome, useBengaliDigits) : ''}
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                        {dRow.dayExpense > 0 ? toBengaliNumber(dRow.dayExpense, useBengaliDigits) : ''}
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                        {toBengaliNumber(dRow.runningCash, useBengaliDigits)}
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
+                        {dRow.mainCategoriesText}
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
+                        -
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  /* Individual Transaction Rows */
+                  transactionsWithRunningCash.map((tx, idx) => {
+                    const isInc = tx.type === 'income';
+                    return (
+                      <tr
+                        key={tx.id || idx}
+                        className="font-medium text-slate-950"
+                        style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '1px solid #000000' }}
+                      >
+                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                          {formatSimpleDate(tx.date, useBengaliDigits)}
+                        </td>
+                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                          {isInc ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
+                        </td>
+                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                          {!isInc && tx.amount > 0 ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
+                        </td>
+                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                          {toBengaliNumber(tx.calculatedCash, useBengaliDigits)}
+                        </td>
+                        <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
+                          {tx.category}
+                        </td>
+                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
+                          {tx.remarks || tx.customerName || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+
+                {/* Total Footer Row */}
+                <tr className="font-bold text-xs sm:text-sm bg-slate-100 text-slate-950" style={{ backgroundColor: '#f1f5f9', pageBreakInside: 'avoid', breakInside: 'avoid', borderTop: '2px solid #000000' }}>
+                  <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
+                    সর্বমোট (TOTAL)
+                  </td>
+                  <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
+                    {toBengaliNumber(totalIncome, useBengaliDigits)}
+                  </td>
+                  <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
+                    {toBengaliNumber(totalExpense, useBengaliDigits)}
+                  </td>
+                  <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
+                    {toBengaliNumber(finalCash, useBengaliDigits)}
+                  </td>
+                  <td style={{ border: '1px solid #000000', padding: '6px 6px', textAlign: 'left', fontWeight: 'black' }}>
+                    অবশিষ্ট ক্যাশ জমা
+                  </td>
+                  <td style={{ border: '1px solid #000000', padding: '6px 4px' }}></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Structured Table */}
-        <div className="overflow-x-auto">
-          <table
-            className="w-full text-xs sm:text-sm text-center font-sans border-collapse text-slate-950"
-            style={{ border: '2px solid #000000', borderCollapse: 'collapse', width: '100%' }}
-          >
-            <thead>
-              {/* Header Titles */}
-              <tr className="bg-slate-100 font-bold text-slate-950" style={{ backgroundColor: '#f1f5f9' }}>
-                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '15%', fontWeight: 'bold' }}>
-                  তারিখ
-                </th>
-                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
-                  আয় (৳)
-                </th>
-                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
-                  ব্যয় (৳)
-                </th>
-                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
-                  ক্যাশ (৳)
-                </th>
-                <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', width: '35%', fontWeight: 'bold' }}>
-                  খরচের বিবরণ
-                </th>
-                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '14%', fontWeight: 'bold' }}>
-                  মন্তব্য
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {viewMode === 'daily' ? (
-                /* Daily Grouped Rows (1 row per date, main subjects only) */
-                dailySummaries.map((dRow) => (
-                  <tr
-                    key={dRow.date}
-                    className="font-medium hover:bg-slate-50 text-slate-950"
-                    style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
-                  >
-                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                      {formatSimpleDate(dRow.date, useBengaliDigits)}
-                    </td>
-                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                      {dRow.dayIncome > 0 ? toBengaliNumber(dRow.dayIncome, useBengaliDigits) : ''}
-                    </td>
-                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                      {dRow.dayExpense > 0 ? toBengaliNumber(dRow.dayExpense, useBengaliDigits) : ''}
-                    </td>
-                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                      {toBengaliNumber(dRow.runningCash, useBengaliDigits)}
-                    </td>
-                    <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
-                      {dRow.mainCategoriesText}
-                    </td>
-                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
-                      -
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                /* Individual Transaction Rows */
-                transactionsWithRunningCash.map((tx, idx) => {
-                  const isInc = tx.type === 'income';
-                  return (
-                    <tr
-                      key={tx.id || idx}
-                      className="font-medium hover:bg-slate-50 text-slate-950"
-                      style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
-                    >
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {formatSimpleDate(tx.date, useBengaliDigits)}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {isInc ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {!isInc && tx.amount > 0 ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {toBengaliNumber(tx.calculatedCash, useBengaliDigits)}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
-                        {tx.category}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
-                        {tx.remarks || tx.customerName || '-'}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-
-              {/* Total Footer Row */}
-              <tr className="font-bold text-xs sm:text-sm bg-slate-100 text-slate-950" style={{ backgroundColor: '#f1f5f9', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
-                  সর্বমোট (TOTAL)
-                </td>
-                <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
-                  {toBengaliNumber(totalIncome, useBengaliDigits)}
-                </td>
-                <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
-                  {toBengaliNumber(totalExpense, useBengaliDigits)}
-                </td>
-                <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
-                  {toBengaliNumber(finalCash, useBengaliDigits)}
-                </td>
-                <td style={{ border: '1px solid #000000', padding: '6px 6px', textAlign: 'left', fontWeight: 'black' }}>
-                  অবশিষ্ট ক্যাশ জমা
-                </td>
-                <td style={{ border: '1px solid #000000', padding: '6px 4px' }}></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Signature Footer */}
-        <div className="mt-12 print:mt-10 pt-8 print:pt-4 flex items-center justify-between font-bold text-xs sm:text-sm text-slate-950" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        {/* Signature Footer - Pushed cleanly to bottom of A4 page */}
+        <div className="mt-12 print:mt-8 pt-8 print:pt-4 flex items-center justify-between font-bold text-xs sm:text-sm text-slate-950" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <div className="text-center">
             <div style={{ width: '200px', borderTop: '2px solid #000000', margin: '0 auto 8px auto' }}></div>
             <span>{shopInfo.managerName || 'দোকান পরিচালকের নাম'}</span>
