@@ -1,0 +1,8 @@
+{
+  "name": "E-Account (Digital Account and Balance Sheet)",
+  "description": "ফটোকপি ও ডিজিটাল দোকানের দৈনিক আয়-ব্যয়, মাসিক রিপোর্ট, খরিদ্দার বাকি খাতা, গ্রাফিক্যাল অ্যানালিটিক্স এবং প্রিন্ট সুবিধা সংবলিত ক্যাশ বুক অ্যাপ।",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

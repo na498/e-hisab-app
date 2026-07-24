@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+*, ::before, ::after {
+  font-family: 'Noto Sans Bengali', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+body, html, button, input, select, textarea {
+  font-family: 'Noto Sans Bengali', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
