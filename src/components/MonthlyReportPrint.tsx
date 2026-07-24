@@ -302,33 +302,24 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
             <thead>
               {/* Header Titles */}
               <tr className="bg-slate-100 font-bold text-slate-950" style={{ backgroundColor: '#f1f5f9' }}>
-                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '15%', fontWeight: 'bold' }}>
+                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '15%', fontWeight: 'bold' }}>
                   তারিখ
                 </th>
-                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '12%', fontWeight: 'bold' }}>
+                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
                   আয় (৳)
                 </th>
-                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '12%', fontWeight: 'bold' }}>
+                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
                   ব্যয় (৳)
                 </th>
-                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '12%', fontWeight: 'bold' }}>
+                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
                   ক্যাশ (৳)
                 </th>
-                <th style={{ border: '1px solid #000000', padding: '8px 8px', textAlign: 'left', width: '34%', fontWeight: 'bold' }}>
+                <th style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'left', width: '35%', fontWeight: 'bold' }}>
                   খরচের বিবরণ
                 </th>
-                <th style={{ border: '1px solid #000000', padding: '8px 4px', width: '15%', fontWeight: 'bold' }}>
+                <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '14%', fontWeight: 'bold' }}>
                   মন্তব্য
                 </th>
-              </tr>
-              {/* Column Numbers Row */}
-              <tr className="bg-slate-50 text-[11px] font-semibold text-slate-800" style={{ backgroundColor: '#f8fafc' }}>
-                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০১</td>
-                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০২</td>
-                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০৩</td>
-                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০৪</td>
-                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>০৫</td>
-                <td style={{ border: '1px solid #000000', padding: '4px', textAlign: 'center', fontWeight: 'bold' }}>০৬</td>
               </tr>
             </thead>
             <tbody>
@@ -338,23 +329,24 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                   <tr
                     key={dRow.date}
                     className="font-medium hover:bg-slate-50 text-slate-950"
+                    style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
                   >
-                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                       {formatSimpleDate(dRow.date, useBengaliDigits)}
                     </td>
-                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                       {dRow.dayIncome > 0 ? toBengaliNumber(dRow.dayIncome, useBengaliDigits) : ''}
                     </td>
-                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                       {dRow.dayExpense > 0 ? toBengaliNumber(dRow.dayExpense, useBengaliDigits) : ''}
                     </td>
-                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                       {toBengaliNumber(dRow.runningCash, useBengaliDigits)}
                     </td>
-                    <td style={{ border: '1px solid #000000', padding: '8px 8px', textAlign: 'left', fontWeight: 'bold' }}>
+                    <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
                       {dRow.mainCategoriesText}
                     </td>
-                    <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center' }}>
+                    <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
                       -
                     </td>
                   </tr>
@@ -367,23 +359,24 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                     <tr
                       key={tx.id || idx}
                       className="font-medium hover:bg-slate-50 text-slate-950"
+                      style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
                     >
-                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                         {formatSimpleDate(tx.date, useBengaliDigits)}
                       </td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                         {isInc ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
                       </td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                         {!isInc && tx.amount > 0 ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
                       </td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                         {toBengaliNumber(tx.calculatedCash, useBengaliDigits)}
                       </td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 8px', textAlign: 'left', fontWeight: 'bold' }}>
+                      <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
                         {tx.category}
                       </td>
-                      <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center' }}>
+                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
                         {tx.remarks || tx.customerName || '-'}
                       </td>
                     </tr>
@@ -392,37 +385,37 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
               )}
 
               {/* Total Footer Row */}
-              <tr className="font-bold text-xs sm:text-sm bg-slate-100 text-slate-950" style={{ backgroundColor: '#f1f5f9' }}>
-                <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'black' }}>
+              <tr className="font-bold text-xs sm:text-sm bg-slate-100 text-slate-950" style={{ backgroundColor: '#f1f5f9', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
                   সর্বমোট (TOTAL)
                 </td>
-                <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'black' }}>
+                <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
                   {toBengaliNumber(totalIncome, useBengaliDigits)}
                 </td>
-                <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'black' }}>
+                <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
                   {toBengaliNumber(totalExpense, useBengaliDigits)}
                 </td>
-                <td style={{ border: '1px solid #000000', padding: '8px 6px', textAlign: 'center', fontWeight: 'black' }}>
+                <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
                   {toBengaliNumber(finalCash, useBengaliDigits)}
                 </td>
-                <td style={{ border: '1px solid #000000', padding: '8px 8px', textAlign: 'left', fontWeight: 'black' }}>
+                <td style={{ border: '1px solid #000000', padding: '6px 6px', textAlign: 'left', fontWeight: 'black' }}>
                   অবশিষ্ট ক্যাশ জমা
                 </td>
-                <td style={{ border: '1px solid #000000', padding: '8px 6px' }}></td>
+                <td style={{ border: '1px solid #000000', padding: '6px 4px' }}></td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        {/* Signature Footer - Matching Page 2 of the uploaded document */}
-        <div className="mt-24 pt-12 flex items-center justify-between font-bold text-xs sm:text-sm text-slate-950">
+        {/* Signature Footer */}
+        <div className="mt-12 print:mt-10 pt-8 print:pt-4 flex items-center justify-between font-bold text-xs sm:text-sm text-slate-950" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <div className="text-center">
-            <div style={{ width: '220px', borderTop: '2px solid #000000', margin: '0 auto 8px auto' }}></div>
+            <div style={{ width: '200px', borderTop: '2px solid #000000', margin: '0 auto 8px auto' }}></div>
             <span>{shopInfo.managerName || 'দোকান পরিচালকের নাম'}</span>
           </div>
 
           <div className="text-center">
-            <div style={{ width: '220px', borderTop: '2px solid #000000', margin: '0 auto 8px auto' }}></div>
+            <div style={{ width: '200px', borderTop: '2px solid #000000', margin: '0 auto 8px auto' }}></div>
             <span>{shopInfo.ownerName || 'মালিকের নাম'}</span>
           </div>
         </div>

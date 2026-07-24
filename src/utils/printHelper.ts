@@ -115,11 +115,18 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
             width: 100% !important;
             border-collapse: collapse !important;
             border: 2px solid #000000 !important;
+            font-size: 11px !important;
           }
           #printable-monthly-sheet th,
           #printable-monthly-sheet td {
             border: 1px solid #000000 !important;
             color: #000000 !important;
+            padding: 4px 5px !important;
+            line-height: 1.2 !important;
+          }
+          #printable-monthly-sheet tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         </style>
       `);
@@ -200,11 +207,18 @@ export function handlePrint(elementId: string, title: string = 'ক্যাশ 
                   width: 100% !important;
                   border-collapse: collapse !important;
                   border: 2px solid #000000 !important;
+                  font-size: 11px !important;
                 }
                 #printable-monthly-sheet th,
                 #printable-monthly-sheet td {
                   border: 1px solid #000000 !important;
                   color: #000000 !important;
+                  padding: 4px 5px !important;
+                  line-height: 1.2 !important;
+                }
+                #printable-monthly-sheet tr {
+                  page-break-inside: avoid !important;
+                  break-inside: avoid !important;
                 }
               `}
             </style>
