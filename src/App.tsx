@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   loadTransactions,
   saveTransactions,
+  deleteTransactionFromSupabase, // 🟢 ডিলিট ফাংশন ইম্পোর্ট
   loadCustomerDues,
   saveCustomerDues,
+  deleteCustomerFromSupabase, // 🟢 ডিলিট ফাংশন ইম্পোর্ট
   loadShopInfo,
   saveShopInfo,
   loadSettings,
@@ -11,6 +13,7 @@ import {
   loadNotifications,
   saveNotifications,
   getLastSyncTime,
+  supabase,
 } from './utils/storage';
 import {
   Transaction,
@@ -84,44 +87,72 @@ export default function App() {
     sessionStorage.removeItem('e_hisab_admin_authenticated');
   };
 
-  // 🔄 Load Initial Data
+  // 🔄 ডাটা লোড করার কেন্দ্রীয় ফাংশন (লাইভ সিঙ্কের জন্য)
+  const fetchAllData = useCallback(async () => {
+    try {
+      const loadedTx = await loadTransactions();
+      setTransactions(loadedTx || []);
+
+      const loadedDues = await loadCustomerDues();
+      setCustomerDues(loadedDues || []);
+
+      const loadedShop = await loadShopInfo();
+      if (loadedShop) setShopInfo(loadedShop);
+
+      const loadedSet = await loadSettings();
+      if (loadedSet) {
+        setSettings(loadedSet);
+        setIsLocked(Boolean(loadedSet?.pinEnabled));
+      }
+
+      setNotifications(loadNotifications() || []);
+      setLastSyncTime(new Date().toISOString());
+    } catch (err) {
+      console.error('Error fetching data:', err);
+    }
+  }, []);
+
+  // 🔴 Realtime Listener & Initial Load
   useEffect(() => {
-    let isMounted = true;
+    fetchAllData();
 
-    const fetchInitialData = async () => {
-      try {
-        const loadedTx = await loadTransactions();
-        if (isMounted) setTransactions(loadedTx || []);
-
-        const loadedDues = await loadCustomerDues();
-        if (isMounted) setCustomerDues(loadedDues || []);
-
-        const loadedShop = await loadShopInfo();
-        if (isMounted && loadedShop) setShopInfo(loadedShop);
-
-        const loadedSet = await loadSettings();
-        if (isMounted && loadedSet) {
-          setSettings(loadedSet);
-          setIsLocked(Boolean(loadedSet?.pinEnabled));
+    // ⚡ Supabase Realtime Subscription
+    const channel = supabase
+      .channel('e-hisab-live-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        () => {
+          fetchAllData();
         }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime sync connected!');
+        }
+      });
 
-        if (isMounted) setNotifications(loadNotifications() || []);
-      } catch (err) {
-        console.error('Error fetching initial data:', err);
+    // 📱 মোবাইল ব্যাকগ্রাউন্ড থেকে আবার সামনে আসলে অটো সিঙ্ক
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAllData();
       }
     };
-
-    fetchInitialData();
+    window.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      isMounted = false;
+      supabase.removeChannel(channel);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [fetchAllData]);
 
   // Window Online/Offline listener
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOffline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      fetchAllData();
+    };
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -130,7 +161,7 @@ export default function App() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [fetchAllData]);
 
   // Save Helpers
   const updateTransactions = useCallback(async (newTxList: Transaction[]) => {
@@ -227,9 +258,11 @@ export default function App() {
     updateTransactions([...transactions, newTx]);
   };
 
-  const handleDeleteTransaction = (id: string) => {
+  // 🔴১. ট্রানজ্যাকশন স্থায়ীভাবে ডিলিট করার আপডেট করা ফনশন
+  const handleDeleteTransaction = async (id: string) => {
     const filtered = transactions.filter((t) => t.id !== id);
-    updateTransactions(filtered);
+    setTransactions(filtered);
+    await deleteTransactionFromSupabase(id); // Supabase DB থেকে মোছা হবে
   };
 
   // Handlers for Customer Dues
@@ -325,9 +358,11 @@ export default function App() {
     }
   };
 
-  const handleDeleteCustomer = (id: string) => {
+  // 🔴২. কাস্টমার স্থায়ীভাবে ডিলিট করার আপডেট করা ফনশন
+  const handleDeleteCustomer = async (id: string) => {
     const filtered = customerDues.filter((c) => c.id !== id);
-    updateCustomerDues(filtered);
+    setCustomerDues(filtered);
+    await deleteCustomerFromSupabase(id); // Supabase DB থেকে মোছা হবে
   };
 
   const handleUpdateCustomerPromiseDate = (

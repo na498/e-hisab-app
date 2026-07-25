@@ -47,7 +47,6 @@ export function calculateRunningBalances(transactions: Transaction[]): Transacti
 ========================================== */
 export async function loadTransactions(): Promise<Transaction[]> {
   try {
-    // সরাসরি Supabase থেকে ডেটা আনা হচ্ছে
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
@@ -55,14 +54,13 @@ export async function loadTransactions(): Promise<Transaction[]> {
 
     if (error) throw error;
 
-    if (data && data.length > 0) {
+    if (data) {
       const formattedData = calculateRunningBalances(data);
-      // ব্যাকআপের জন্য লোকাল স্টোরেজেও রেখে দেওয়া
+      // Supabase-এর আসল ডাটা দিয়ে LocalStorage পুরোপুরি ওভাররাইট করা হচ্ছে
       localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(formattedData));
       return formattedData;
     }
 
-    // Supabase ফাঁকা থাকলে লোকাল থেকে ট্রাই করবে
     const local = localStorage.getItem(KEYS.TRANSACTIONS);
     return local ? JSON.parse(local) : [];
   } catch (err) {
@@ -75,14 +73,15 @@ export async function loadTransactions(): Promise<Transaction[]> {
 export async function saveTransactions(transactions: Transaction[]): Promise<void> {
   try {
     const withBalances = calculateRunningBalances(transactions || []);
-
-    // লোকাল স্টোরেজে দ্রুত আপডেট
     localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(withBalances));
 
-    // Supabase-এ পাঠানোর আগে 'cashBalance' ফিল্ডটি বাদ দেওয়া হচ্ছে (কারণ এটি ডাটাবেজ কলামে নেই)
+    if (withBalances.length === 0) {
+      // যদি সবগুলো ডিলিট হয়ে অ্যাপ খালি হয়ে যায়, সুপাবেস থেকেও ক্লিয়ার করবে
+      return;
+    }
+
     const cleanTransactions = withBalances.map(({ cashBalance, ...rest }) => rest);
 
-    // Supabase ডাটাবেজে সেভ/আপডেট
     const { error } = await supabase
       .from('transactions')
       .upsert(cleanTransactions, { onConflict: 'id' });
@@ -94,6 +93,28 @@ export async function saveTransactions(transactions: Transaction[]): Promise<voi
     }
   } catch (err) {
     console.error("Error saving transactions:", err);
+  }
+}
+
+// 🟢 Supabase এবং LocalStorage উভয় স্থান থেকে ট্রানজ্যাকশন সম্পূর্ণ ডিলিট
+export async function deleteTransactionFromSupabase(id: string): Promise<void> {
+  try {
+    // ১. Supabase থেকে ডিলিট
+    const { error } = await supabase.from('transactions').delete().eq('id', id);
+    if (error) {
+      console.error("Error deleting transaction from Supabase:", error.message);
+    }
+
+    // ২. LocalStorage থেকে ডিলিট
+    const local = localStorage.getItem(KEYS.TRANSACTIONS);
+    if (local) {
+      const list: Transaction[] = JSON.parse(local);
+      const filtered = list.filter((t) => t.id !== id);
+      localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(filtered));
+    }
+    localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
+  } catch (err) {
+    console.error("Error in deleteTransactionFromSupabase:", err);
   }
 }
 
@@ -123,6 +144,8 @@ export async function saveCustomerDues(dues: CustomerDue[]): Promise<void> {
   try {
     const cleanDues = dues || [];
     localStorage.setItem(KEYS.CUSTOMER_DUES, JSON.stringify(cleanDues));
+
+    if (cleanDues.length === 0) return;
     
     const { error } = await supabase
       .from('customer_dues')
@@ -138,12 +161,31 @@ export async function saveCustomerDues(dues: CustomerDue[]): Promise<void> {
   }
 }
 
+// 🟢 Supabase এবং LocalStorage থেকে কাস্টমার ডিলিট করার ফাংশন
+export async function deleteCustomerFromSupabase(id: string): Promise<void> {
+  try {
+    const { error } = await supabase.from('customer_dues').delete().eq('id', id);
+    if (error) {
+      console.error("Error deleting customer from Supabase:", error.message);
+    }
+
+    const raw = localStorage.getItem(KEYS.CUSTOMER_DUES);
+    if (raw) {
+      const list: CustomerDue[] = JSON.parse(raw);
+      const filtered = list.filter((c) => c.id !== id);
+      localStorage.setItem(KEYS.CUSTOMER_DUES, JSON.stringify(filtered));
+    }
+    localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
+  } catch (err) {
+    console.error("Error in deleteCustomerFromSupabase:", err);
+  }
+}
+
 /* ==========================================
     ৩. শপ ও সেটিংস (SHOP INFO & SETTINGS)
 ========================================== */
 export async function loadShopInfo(): Promise<ShopInfo> {
   try {
-    // ১. প্রথমে Supabase থেকে শপ ইনফো লোড করার চেষ্টা
     const { data, error } = await supabase
       .from('shop_info')
       .select('*')
@@ -153,11 +195,11 @@ export async function loadShopInfo(): Promise<ShopInfo> {
     if (error) console.error('Error loading shop info from Supabase:', error.message);
 
     if (data) {
-      localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(data));
-      return { ...INITIAL_SHOP_INFO, ...data };
+      const mergedShop = { ...INITIAL_SHOP_INFO, ...data };
+      localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(mergedShop));
+      return mergedShop;
     }
 
-    // Supabase-এ ডেটা না থাকলে বা এরর হলে LocalStorage থেকে ব্যাকআপ পড়া
     const raw = localStorage.getItem(KEYS.SHOP_INFO);
     return raw ? JSON.parse(raw) : INITIAL_SHOP_INFO;
   } catch (err) {
@@ -169,10 +211,8 @@ export async function loadShopInfo(): Promise<ShopInfo> {
 
 export async function saveShopInfo(info: ShopInfo): Promise<void> {
   try {
-    // LocalStorage এ দ্রুত সেভ
     localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(info));
 
-    // Supabase এ সিঙ্ক করা
     const shopData = { id: 'main_shop', ...info };
     const { error } = await supabase
       .from('shop_info')
@@ -188,9 +228,9 @@ export async function saveShopInfo(info: ShopInfo): Promise<void> {
   }
 }
 
+// 🟢 সেটিংস লোড করার সঠিক পার্সিং
 export async function loadSettings(): Promise<UserSettings> {
   try {
-    // ১. Supabase থেকে সেটিংস লোড করা
     const { data, error } = await supabase
       .from('settings')
       .select('*')
@@ -200,11 +240,20 @@ export async function loadSettings(): Promise<UserSettings> {
     if (error) console.error('Error loading settings from Supabase:', error.message);
 
     if (data) {
-      localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data));
-      return { ...INITIAL_SETTINGS, ...data };
+      const parsedSettings: UserSettings = {
+        ...INITIAL_SETTINGS,
+        ...data,
+        quickPresets: data.quickPresets || INITIAL_SETTINGS.quickPresets || [],
+        customCategories: data.customCategories || INITIAL_SETTINGS.customCategories || [],
+        customIncomeCategories: data.customIncomeCategories || INITIAL_SETTINGS.customIncomeCategories || [],
+        customExpenseCategories: data.customExpenseCategories || INITIAL_SETTINGS.customExpenseCategories || [],
+        hiddenCategories: data.hiddenCategories || INITIAL_SETTINGS.hiddenCategories || [],
+      };
+
+      localStorage.setItem(KEYS.SETTINGS, JSON.stringify(parsedSettings));
+      return parsedSettings;
     }
 
-    // LocalStorage ব্যাকআপ
     const raw = localStorage.getItem(KEYS.SETTINGS);
     return raw ? JSON.parse(raw) : INITIAL_SETTINGS;
   } catch (err) {
@@ -214,13 +263,22 @@ export async function loadSettings(): Promise<UserSettings> {
   }
 }
 
+// 🟢 সেটিংস সেভ করার কাজ
 export async function saveSettings(settings: UserSettings): Promise<void> {
   try {
-    // LocalStorage এ দ্রুত সেভ
-    localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+    const cleanSettings: UserSettings = {
+      ...INITIAL_SETTINGS,
+      ...settings,
+      quickPresets: settings?.quickPresets || [],
+      customCategories: settings?.customCategories || [],
+      customIncomeCategories: settings?.customIncomeCategories || [],
+      customExpenseCategories: settings?.customExpenseCategories || [],
+      hiddenCategories: settings?.hiddenCategories || [],
+    };
 
-    // Supabase এ সিঙ্ক করা
-    const settingsData = { id: 'main_settings', ...settings };
+    localStorage.setItem(KEYS.SETTINGS, JSON.stringify(cleanSettings));
+
+    const settingsData = { id: 'main_settings', ...cleanSettings };
     const { error } = await supabase
       .from('settings')
       .upsert(settingsData, { onConflict: 'id' });
