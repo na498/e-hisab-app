@@ -139,10 +139,10 @@ export const QuickEntryWidget: React.FC<QuickEntryWidgetProps> = ({
         <div>
           <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
             <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
-            <span>ফটোকপি ও দ্রুত ক্যাশ এন্ট্রি</span>
+            <span>দ্রুত ক্যাশ এন্ট্রি</span>
           </h2>
           <p className="text-xs text-slate-500">
-            দোকানের প্রতিদিনের ছোট খাটো বিক্রি এক ক্লিকে যুক্ত করুন (এডমিন থেকে নতুন যোগ করা যাবে)
+            দোকানের প্রতিদিনের ছোট খাটো বিক্রি এক ক্লিকে যুক্ত করুন
           </p>
         </div>
         <div className="flex items-center gap-2">

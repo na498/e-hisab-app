@@ -3,7 +3,7 @@ import {
   INITIAL_SHOP_INFO,
   INITIAL_SETTINGS,
 } from '../data/sampleData';
-import { supabase } from './supabase'; // Supabase Client কানেক্ট করা হলো
+import { supabase } from './supabase';
 
 const KEYS = {
   TRANSACTIONS: 'e_hisab_transactions_v1',
@@ -190,7 +190,14 @@ export async function loadShopInfo(): Promise<ShopInfo> {
       const mergedShop: ShopInfo = {
         ...INITIAL_SHOP_INFO,
         ...data,
+        name: data.name ?? data.shopName ?? data.shop_name ?? INITIAL_SHOP_INFO.name ?? '',
+        shopName: data.shopName ?? data.shop_name ?? data.name ?? (INITIAL_SHOP_INFO as any).shopName ?? '',
+        ownerName: data.ownerName ?? data.owner_name ?? data.owner ?? INITIAL_SHOP_INFO.ownerName ?? '',
         branchName: data.branchName ?? data.branch_name ?? INITIAL_SHOP_INFO.branchName ?? '',
+        managerName: data.managerName ?? data.manager_name ?? (INITIAL_SHOP_INFO as any).managerName ?? '',
+        phone: data.phone ?? INITIAL_SHOP_INFO.phone ?? '',
+        address: data.address ?? INITIAL_SHOP_INFO.address ?? '',
+        logo: data.logo ?? INITIAL_SHOP_INFO.logo ?? '',
       };
       localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(mergedShop));
       return mergedShop;
@@ -207,16 +214,36 @@ export async function loadShopInfo(): Promise<ShopInfo> {
 
 export async function saveShopInfo(info: ShopInfo): Promise<void> {
   try {
-    localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(info));
+    const cleanInfo = {
+      ...info,
+      name: info?.name || '',
+      phone: info?.phone || '',
+      address: info?.address || '',
+      logo: info?.logo || '',
+    };
 
-    const shopBranch = (info as any).branchName || (info as any).branch_name || '';
+    localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(cleanInfo));
 
-    // camelCase এবং snake_case দুটো ফরম্যাটেই ম্যাপিং করা হলো
+    const shopTitle = (cleanInfo as any).shopName || (cleanInfo as any).shop_name || cleanInfo.name || '';
+    const shopOwner = (cleanInfo as any).ownerName || (cleanInfo as any).owner_name || (cleanInfo as any).owner || '';
+    const shopBranch = (cleanInfo as any).branchName || (cleanInfo as any).branch_name || '';
+    const shopManager = (cleanInfo as any).managerName || (cleanInfo as any).manager_name || '';
+
     const shopData = {
       id: 'main_shop',
-      ...info,
+      name: cleanInfo.name || shopTitle,
+      shopName: shopTitle,
+      shop_name: shopTitle,
+      owner: (cleanInfo as any).owner || shopOwner,
+      ownerName: shopOwner,
+      owner_name: shopOwner,
       branchName: shopBranch,
       branch_name: shopBranch,
+      managerName: shopManager,
+      manager_name: shopManager,
+      phone: cleanInfo.phone || '',
+      address: cleanInfo.address || '',
+      logo: cleanInfo.logo || '',
     };
 
     const { error } = await supabase
@@ -233,7 +260,6 @@ export async function saveShopInfo(info: ShopInfo): Promise<void> {
   }
 }
 
-// 🟢 সেটিংস লোড করার ফিক্সড ফাংশন (DB standard Snake Case mapping)
 export async function loadSettings(): Promise<UserSettings> {
   try {
     const { data, error } = await supabase
@@ -275,7 +301,6 @@ export async function loadSettings(): Promise<UserSettings> {
   }
 }
 
-// 🟢 সেটিংস সেভ করার ফিক্সড ফাংশন (Snake Case & Camel Case দুটো কলাম সাপোর্ট সহ)
 export async function saveSettings(settings: UserSettings): Promise<void> {
   try {
     const cleanSettings: UserSettings = {
@@ -290,21 +315,30 @@ export async function saveSettings(settings: UserSettings): Promise<void> {
 
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(cleanSettings));
 
-    // Supabase DB এর জন্য ডাটা ম্যাপ (DB Table Safe Format)
     const settingsData = {
       id: 'main_settings',
-      ...cleanSettings,
-      // Snake_case Fallback mapping
+      pin: cleanSettings.pin || '',
+      pinEnabled: cleanSettings.pinEnabled,
       pin_enabled: cleanSettings.pinEnabled,
+      authEnabled: cleanSettings.authEnabled,
       auth_enabled: cleanSettings.authEnabled,
-      admin_phone: cleanSettings.adminPhone,
-      admin_password: cleanSettings.adminPassword,
+      adminPhone: cleanSettings.adminPhone || '',
+      admin_phone: cleanSettings.adminPhone || '',
+      adminPassword: cleanSettings.adminPassword || '',
+      admin_password: cleanSettings.adminPassword || '',
+      useBengaliDigits: cleanSettings.useBengaliDigits,
       use_bengali_digits: cleanSettings.useBengaliDigits,
+      monthStartDay: cleanSettings.monthStartDay,
       month_start_day: cleanSettings.monthStartDay,
+      quickPresets: cleanSettings.quickPresets,
       quick_presets: cleanSettings.quickPresets,
+      customCategories: cleanSettings.customCategories,
       custom_categories: cleanSettings.customCategories,
+      customIncomeCategories: cleanSettings.customIncomeCategories,
       custom_income_categories: cleanSettings.customIncomeCategories,
+      customExpenseCategories: cleanSettings.customExpenseCategories,
       custom_expense_categories: cleanSettings.customExpenseCategories,
+      hiddenCategories: cleanSettings.hiddenCategories,
       hidden_categories: cleanSettings.hiddenCategories,
     };
 

@@ -83,11 +83,15 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
 
       {/* Bottom Logout Button */}
       {authEnabled && onLogout && (
-        <div className="p-2 sm:p-3 border-t border-slate-100 mt-2">
+        <div className="p-2 sm:p-3 border-t border-slate-200 mt-2 bg-slate-50/50 md:bg-transparent">
           <button
-            onClick={onLogout}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onLogout();
+            }}
             id="sidebar-logout-btn"
-            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all w-full text-left"
+            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all w-full text-left cursor-pointer"
           >
             <LogOut className="w-4 h-4 text-rose-600 shrink-0" />
             <span>এডমিন লগআউট (Logout)</span>

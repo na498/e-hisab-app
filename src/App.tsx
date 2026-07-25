@@ -73,22 +73,30 @@ export default function App() {
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState<boolean>(false);
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  
+  // 🟢 সিকিউরড লগইন স্টেট ইনিশিয়ালাইজেশন
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return sessionStorage.getItem('e_hisab_admin_authenticated') === 'true';
   });
 
   const handleLoginSuccess = () => {
-    setIsLoggedIn(true);
     sessionStorage.setItem('e_hisab_admin_authenticated', 'true');
+    setIsLoggedIn(true);
   };
 
+  // 🟢 ফিক্সড লগআউট হ্যান্ডলার (সেশন মুছে সরাসরি হার্ড রিলোড)
   const handleLogout = () => {
+    sessionStorage.clear();
+    localStorage.removeItem('e_hisab_admin_authenticated');
     setIsLoggedIn(false);
-    sessionStorage.removeItem('e_hisab_admin_authenticated');
+    window.location.href = window.location.pathname; // সফট রিলোডের বদলে হার্ড রিডাইরেক্ট
   };
 
-  // 🟢 ডাটা লোড করার কেন্দ্রীয় ফাংশন (অবজেক্ট স্প্রেড সহ রি-রেন্ডার নিশ্চিতকরণ)
+// 🟢 ডাটা লোড করার কেন্দ্রীয় ফাংশন
   const fetchAllData = useCallback(async () => {
+    // যদি ইউজার লগইন করা না থাকে, তবে ডাটা ফেচ বা লোড হবে না
+    if (sessionStorage.getItem('e_hisab_admin_authenticated') !== 'true') return;
+
     try {
       const [txData, duesData, shopData, settingsData] = await Promise.all([
         loadTransactions(),
@@ -102,7 +110,7 @@ export default function App() {
       if (shopData) setShopInfo(shopData);
       
       if (settingsData) {
-        setSettings({ ...settingsData }); // New object reference for live sync re-render
+        setSettings({ ...settingsData });
         setIsLocked(Boolean(settingsData?.pinEnabled));
       }
 
@@ -117,7 +125,6 @@ export default function App() {
   useEffect(() => {
     fetchAllData();
 
-    // ⚡ Supabase Realtime Subscription
     const channel = supabase
       .channel('e-hisab-live-sync')
       .on(
@@ -125,7 +132,7 @@ export default function App() {
         { event: '*', schema: 'public' },
         (payload) => {
           console.log('Realtime change detected:', payload);
-          fetchAllData(); // যেকোনো টেবিলে চেঞ্জ হলে ইনস্ট্যান্ট রি-লোড হবে
+          fetchAllData();
         }
       )
       .subscribe((status) => {
@@ -136,7 +143,6 @@ export default function App() {
         }
       });
 
-    // 📱 মোবাইল ব্যাকগ্রাউন্ড থেকে আবার সামনে আসলে বা স্ক্রিন অন হলে ফ্রেচ
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         fetchAllData();
@@ -265,7 +271,6 @@ export default function App() {
     updateTransactions([...transactions, newTx]);
   };
 
-  // 🔴১. ট্রানজ্যাকশন স্থায়ীভাবে ডিলিট করার ফাংশন
   const handleDeleteTransaction = async (id: string) => {
     const filtered = transactions.filter((t) => t.id !== id);
     setTransactions(filtered);
@@ -365,7 +370,6 @@ export default function App() {
     }
   };
 
-  // 🔴২. কাস্টমার স্থায়ীভাবে ডিলিট করার ফাংশন
   const handleDeleteCustomer = async (id: string) => {
     const filtered = customerDues.filter((c) => c.id !== id);
     setCustomerDues(filtered);
@@ -564,13 +568,16 @@ export default function App() {
     (c) => c && ((c.totalDue || 0) - (c.totalPaid || 0) > 0)
   ).length;
 
+  // 🟢 যদি authEnabled অন থাকে এবং ব্যবহারকারী লগইন করা না থাকে, তবে শুধুমাত্র LoginModal দেখাবে এবং পেছনের ড্যাশবোর্ড সম্পূর্ণ হাইড থাকবে
+  const showLogin = (settings?.authEnabled ?? true) && !isLoggedIn;
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans selection:bg-emerald-200">
-      {isLocked && (
+      {isLocked && !showLogin && (
         <PinLockModal settings={settings} onUnlock={handleUnlock} />
       )}
 
-      {(settings?.authEnabled ?? true) && !isLoggedIn && (
+      {showLogin && (
         <LoginModal
           isOpen={true}
           onLoginSuccess={handleLoginSuccess}
@@ -580,137 +587,142 @@ export default function App() {
         />
       )}
 
-      <Header
-        shopInfo={shopInfo}
-        settings={settings}
-        notifications={notifications}
-        isOnline={isOnline}
-        onOpenNewTx={() => {
-          setEditingTx(null);
-          setIsNewTxModalOpen(true);
-        }}
-        onLockApp={() => setIsLocked(true)}
-        onLogout={handleLogout}
-        onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
-        onQuickPrint={() => setActiveTab('monthly_report')}
-        activeTab={activeTab}
-      />
+      {/* ড্যাশবোর্ড কন্টেন্ট শুধুমাত্র লগইন করা থাকলেই রেন্ডার হবে */}
+      {!showLogin && (
+        <>
+          <Header
+            shopInfo={shopInfo}
+            settings={settings}
+            notifications={notifications}
+            isOnline={isOnline}
+            onOpenNewTx={() => {
+              setEditingTx(null);
+              setIsNewTxModalOpen(true);
+            }}
+            onLockApp={() => setIsLocked(true)}
+            onLogout={handleLogout}
+            onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
+            onQuickPrint={() => setActiveTab('monthly_report')}
+            activeTab={activeTab}
+          />
 
-      <div className="flex flex-col md:flex-row flex-1 max-w-[1400px] w-full mx-auto">
-        <NavigationTabs
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          dueCount={activeDueCount}
-          onLogout={handleLogout}
-          authEnabled={settings?.authEnabled ?? true}
-        />
-
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 min-w-0">
-          {activeTab === 'dashboard' && (
-            <DashboardOverview
-              transactions={transactions}
-              customerDues={customerDues}
-              onAddTransaction={handleQuickAddTransaction}
-              onNavigateTab={setActiveTab}
-              onOpenNewTxModal={() => {
-                setEditingTx(null);
-                setIsNewTxModalOpen(true);
-              }}
-              useBengaliDigits={settings?.useBengaliDigits ?? true}
-              quickPresets={settings?.quickPresets || []}
-              customCategories={settings?.customCategories || []}
-              customIncomeCategories={settings?.customIncomeCategories || []}
-              customExpenseCategories={settings?.customExpenseCategories || []}
+          <div className="flex flex-col md:flex-row flex-1 max-w-[1400px] w-full mx-auto">
+            <NavigationTabs
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              dueCount={activeDueCount}
+              onLogout={handleLogout}
+              authEnabled={true}
             />
-          )}
 
-          {activeTab === 'ledger' && (
-            <DailyLedger
-              transactions={transactions}
-              shopInfo={shopInfo}
-              onOpenNewTx={() => {
-                setEditingTx(null);
-                setIsNewTxModalOpen(true);
-              }}
-              onEditTx={(tx) => {
-                setEditingTx(tx);
-                setIsNewTxModalOpen(true);
-              }}
-              onDeleteTx={handleDeleteTransaction}
-              useBengaliDigits={settings?.useBengaliDigits ?? true}
-              monthStartDay={settings?.monthStartDay || 1}
-              customCategories={settings?.customCategories || []}
-            />
-          )}
+            <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 min-w-0">
+              {activeTab === 'dashboard' && (
+                <DashboardOverview
+                  transactions={transactions}
+                  customerDues={customerDues}
+                  onAddTransaction={handleQuickAddTransaction}
+                  onNavigateTab={setActiveTab}
+                  onOpenNewTxModal={() => {
+                    setEditingTx(null);
+                    setIsNewTxModalOpen(true);
+                  }}
+                  useBengaliDigits={settings?.useBengaliDigits ?? true}
+                  quickPresets={settings?.quickPresets || []}
+                  customCategories={settings?.customCategories || []}
+                  customIncomeCategories={settings?.customIncomeCategories || []}
+                  customExpenseCategories={settings?.customExpenseCategories || []}
+                />
+              )}
 
-          {activeTab === 'dues' && (
-            <DueDashboard
-              customerDues={customerDues}
-              shopInfo={shopInfo}
-              onAddCustomer={handleAddCustomer}
-              onRecordPayment={handleRecordPayment}
-              onDeleteCustomer={handleDeleteCustomer}
-              onDeleteHistoryItem={handleDeleteHistoryItem}
-              onUpdatePromiseDate={handleUpdateCustomerPromiseDate}
-              useBengaliDigits={settings?.useBengaliDigits ?? true}
-            />
-          )}
+              {activeTab === 'ledger' && (
+                <DailyLedger
+                  transactions={transactions}
+                  shopInfo={shopInfo}
+                  onOpenNewTx={() => {
+                    setEditingTx(null);
+                    setIsNewTxModalOpen(true);
+                  }}
+                  onEditTx={(tx) => {
+                    setEditingTx(tx);
+                    setIsNewTxModalOpen(true);
+                  }}
+                  onDeleteTx={handleDeleteTransaction}
+                  useBengaliDigits={settings?.useBengaliDigits ?? true}
+                  monthStartDay={settings?.monthStartDay || 1}
+                  customCategories={settings?.customCategories || []}
+                />
+              )}
 
-          {activeTab === 'monthly_report' && (
-            <MonthlyReportPrint
-              transactions={transactions}
-              shopInfo={shopInfo}
-              onDeleteTx={handleDeleteTransaction}
-              useBengaliDigits={settings?.useBengaliDigits ?? true}
-              monthStartDay={settings?.monthStartDay || 1}
-            />
-          )}
+              {activeTab === 'dues' && (
+                <DueDashboard
+                  customerDues={customerDues}
+                  shopInfo={shopInfo}
+                  onAddCustomer={handleAddCustomer}
+                  onRecordPayment={handleRecordPayment}
+                  onDeleteCustomer={handleDeleteCustomer}
+                  onDeleteHistoryItem={handleDeleteHistoryItem}
+                  onUpdatePromiseDate={handleUpdateCustomerPromiseDate}
+                  useBengaliDigits={settings?.useBengaliDigits ?? true}
+                />
+              )}
 
-          {activeTab === 'analytics' && (
-            <AnalyticsCharts
-              transactions={transactions}
-              useBengaliDigits={settings?.useBengaliDigits ?? true}
-            />
-          )}
+              {activeTab === 'monthly_report' && (
+                <MonthlyReportPrint
+                  transactions={transactions}
+                  shopInfo={shopInfo}
+                  onDeleteTx={handleDeleteTransaction}
+                  useBengaliDigits={settings?.useBengaliDigits ?? true}
+                  monthStartDay={settings?.monthStartDay || 1}
+                />
+              )}
 
-          {activeTab === 'settings' && (
-            <SettingsBackup
-              shopInfo={shopInfo}
-              onUpdateShopInfo={updateShopInfoState}
-              settings={settings}
-              onUpdateSettings={updateSettingsState}
-              transactions={transactions}
-              customerDues={customerDues}
-              onImportFullBackup={handleImportFullBackup}
-              lastSyncTime={lastSyncTime}
-              useBengaliDigits={settings?.useBengaliDigits ?? true}
-            />
-          )}
-        </main>
-      </div>
+              {activeTab === 'analytics' && (
+                <AnalyticsCharts
+                  transactions={transactions}
+                  useBengaliDigits={settings?.useBengaliDigits ?? true}
+                />
+              )}
 
-      <TransactionFormModal
-        isOpen={isNewTxModalOpen}
-        onClose={() => {
-          setIsNewTxModalOpen(false);
-          setEditingTx(null);
-        }}
-        onSave={handleSaveTransaction}
-        editingTransaction={editingTx}
-        useBengaliDigits={settings?.useBengaliDigits ?? true}
-        customCategories={settings?.customCategories || []}
-        customIncomeCategories={settings?.customIncomeCategories || []}
-        customExpenseCategories={settings?.customExpenseCategories || []}
-        hiddenCategories={settings?.hiddenCategories || []}
-      />
+              {activeTab === 'settings' && (
+                <SettingsBackup
+                  shopInfo={shopInfo}
+                  onUpdateShopInfo={updateShopInfoState}
+                  settings={settings}
+                  onUpdateSettings={updateSettingsState}
+                  transactions={transactions}
+                  customerDues={customerDues}
+                  onImportFullBackup={handleImportFullBackup}
+                  lastSyncTime={lastSyncTime}
+                  useBengaliDigits={settings?.useBengaliDigits ?? true}
+                />
+              )}
+            </main>
+          </div>
 
-      <NotificationDrawer
-        isOpen={isNotificationDrawerOpen}
-        onClose={() => setIsNotificationDrawerOpen(false)}
-        notifications={notifications}
-        onMarkAsRead={handleMarkNotificationRead}
-        onClearAll={handleClearAllNotifications}
-      />
+          <TransactionFormModal
+            isOpen={isNewTxModalOpen}
+            onClose={() => {
+              setIsNewTxModalOpen(false);
+              setEditingTx(null);
+            }}
+            onSave={handleSaveTransaction}
+            editingTransaction={editingTx}
+            useBengaliDigits={settings?.useBengaliDigits ?? true}
+            customCategories={settings?.customCategories || []}
+            customIncomeCategories={settings?.customIncomeCategories || []}
+            customExpenseCategories={settings?.customExpenseCategories || []}
+            hiddenCategories={settings?.hiddenCategories || []}
+          />
+
+          <NotificationDrawer
+            isOpen={isNotificationDrawerOpen}
+            onClose={() => setIsNotificationDrawerOpen(false)}
+            notifications={notifications}
+            onMarkAsRead={handleMarkNotificationRead}
+            onClearAll={handleClearAllNotifications}
+          />
+        </>
+      )}
 
       <style>{`
         @page {
