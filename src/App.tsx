@@ -84,30 +84,38 @@ export default function App() {
     sessionStorage.removeItem('e_hisab_admin_authenticated');
   };
 
-  // Load Initial Data from Supabase / Storage
+  // 🔄 Load Initial Data
   useEffect(() => {
+    let isMounted = true;
+
     const fetchInitialData = async () => {
       try {
         const loadedTx = await loadTransactions();
-        setTransactions(loadedTx);
+        if (isMounted) setTransactions(loadedTx || []);
 
         const loadedDues = await loadCustomerDues();
-        setCustomerDues(loadedDues);
+        if (isMounted) setCustomerDues(loadedDues || []);
 
         const loadedShop = await loadShopInfo();
-        setShopInfo(loadedShop);
+        if (isMounted && loadedShop) setShopInfo(loadedShop);
 
         const loadedSet = await loadSettings();
-        setSettings(loadedSet);
-        setIsLocked(Boolean(loadedSet?.pinEnabled));
+        if (isMounted && loadedSet) {
+          setSettings(loadedSet);
+          setIsLocked(Boolean(loadedSet?.pinEnabled));
+        }
 
-        setNotifications(loadNotifications());
+        if (isMounted) setNotifications(loadNotifications() || []);
       } catch (err) {
         console.error('Error fetching initial data:', err);
       }
     };
 
     fetchInitialData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Window Online/Offline listener
@@ -124,7 +132,7 @@ export default function App() {
     };
   }, []);
 
-  // Save Helpers (Updates local state + Supabase async save)
+  // Save Helpers
   const updateTransactions = useCallback(async (newTxList: Transaction[]) => {
     setTransactions(newTxList);
     await saveTransactions(newTxList);
@@ -201,7 +209,7 @@ export default function App() {
     });
     const displayDateStr = formatShortMonthDay(
       todayStr,
-      settings.useBengaliDigits
+      settings?.useBengaliDigits ?? true
     );
 
     const newTx: Transaction = {
@@ -264,7 +272,7 @@ export default function App() {
     });
     const displayDateStr = formatShortMonthDay(
       todayStr,
-      settings.useBengaliDigits
+      settings?.useBengaliDigits ?? true
     );
 
     const updatedDues = customerDues.map((c) => {
@@ -335,10 +343,10 @@ export default function App() {
     if (oldPromiseDate === newPromiseDate) return;
 
     const oldDateLabel = oldPromiseDate
-      ? formatShortMonthDay(oldPromiseDate, settings.useBengaliDigits)
+      ? formatShortMonthDay(oldPromiseDate, settings?.useBengaliDigits ?? true)
       : 'কোনো তারিখ ছিল না';
     const newDateLabel = newPromiseDate
-      ? formatShortMonthDay(newPromiseDate, settings.useBengaliDigits)
+      ? formatShortMonthDay(newPromiseDate, settings?.useBengaliDigits ?? true)
       : 'তারিখ বাদ দেওয়া হয়েছে';
 
     const reasonSuffix = reason && reason.trim() ? ` (${reason.trim()})` : '';
@@ -485,10 +493,10 @@ export default function App() {
     shopInfo: ShopInfo;
     settings: UserSettings;
   }) => {
-    updateTransactions(data.transactions);
-    updateCustomerDues(data.customerDues);
-    updateShopInfoState(data.shopInfo);
-    updateSettingsState(data.settings);
+    if (data.transactions) updateTransactions(data.transactions);
+    if (data.customerDues) updateCustomerDues(data.customerDues);
+    if (data.shopInfo) updateShopInfoState(data.shopInfo);
+    if (data.settings) updateSettingsState(data.settings);
   };
 
   const handleUnlock = (pin: string): boolean => {
@@ -520,12 +528,12 @@ export default function App() {
         <PinLockModal settings={settings} onUnlock={handleUnlock} />
       )}
 
-      {(settings.authEnabled ?? true) && !isLoggedIn && (
+      {(settings?.authEnabled ?? true) && !isLoggedIn && (
         <LoginModal
           isOpen={true}
           onLoginSuccess={handleLoginSuccess}
-          adminPhone={settings.adminPhone || '01810957959'}
-          adminPassword={settings.adminPassword || '01810957959'}
+          adminPhone={settings?.adminPhone || '01810957959'}
+          adminPassword={settings?.adminPassword || '01810957959'}
           shopInfo={shopInfo}
         />
       )}
@@ -552,7 +560,7 @@ export default function App() {
           setActiveTab={setActiveTab}
           dueCount={activeDueCount}
           onLogout={handleLogout}
-          authEnabled={settings.authEnabled ?? true}
+          authEnabled={settings?.authEnabled ?? true}
         />
 
         <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 min-w-0">
@@ -566,11 +574,11 @@ export default function App() {
                 setEditingTx(null);
                 setIsNewTxModalOpen(true);
               }}
-              useBengaliDigits={settings.useBengaliDigits}
-              quickPresets={settings.quickPresets}
-              customCategories={settings.customCategories}
-              customIncomeCategories={settings.customIncomeCategories}
-              customExpenseCategories={settings.customExpenseCategories}
+              useBengaliDigits={settings?.useBengaliDigits ?? true}
+              quickPresets={settings?.quickPresets || []}
+              customCategories={settings?.customCategories || []}
+              customIncomeCategories={settings?.customIncomeCategories || []}
+              customExpenseCategories={settings?.customExpenseCategories || []}
             />
           )}
 
@@ -587,9 +595,9 @@ export default function App() {
                 setIsNewTxModalOpen(true);
               }}
               onDeleteTx={handleDeleteTransaction}
-              useBengaliDigits={settings.useBengaliDigits}
-              monthStartDay={settings.monthStartDay}
-              customCategories={settings.customCategories}
+              useBengaliDigits={settings?.useBengaliDigits ?? true}
+              monthStartDay={settings?.monthStartDay || 1}
+              customCategories={settings?.customCategories || []}
             />
           )}
 
@@ -602,7 +610,7 @@ export default function App() {
               onDeleteCustomer={handleDeleteCustomer}
               onDeleteHistoryItem={handleDeleteHistoryItem}
               onUpdatePromiseDate={handleUpdateCustomerPromiseDate}
-              useBengaliDigits={settings.useBengaliDigits}
+              useBengaliDigits={settings?.useBengaliDigits ?? true}
             />
           )}
 
@@ -611,15 +619,15 @@ export default function App() {
               transactions={transactions}
               shopInfo={shopInfo}
               onDeleteTx={handleDeleteTransaction}
-              useBengaliDigits={settings.useBengaliDigits}
-              monthStartDay={settings.monthStartDay}
+              useBengaliDigits={settings?.useBengaliDigits ?? true}
+              monthStartDay={settings?.monthStartDay || 1}
             />
           )}
 
           {activeTab === 'analytics' && (
             <AnalyticsCharts
               transactions={transactions}
-              useBengaliDigits={settings.useBengaliDigits}
+              useBengaliDigits={settings?.useBengaliDigits ?? true}
             />
           )}
 
@@ -633,7 +641,7 @@ export default function App() {
               customerDues={customerDues}
               onImportFullBackup={handleImportFullBackup}
               lastSyncTime={lastSyncTime}
-              useBengaliDigits={settings.useBengaliDigits}
+              useBengaliDigits={settings?.useBengaliDigits ?? true}
             />
           )}
         </main>
@@ -647,11 +655,11 @@ export default function App() {
         }}
         onSave={handleSaveTransaction}
         editingTransaction={editingTx}
-        useBengaliDigits={settings.useBengaliDigits}
-        customCategories={settings.customCategories}
-        customIncomeCategories={settings.customIncomeCategories}
-        customExpenseCategories={settings.customExpenseCategories}
-        hiddenCategories={settings.hiddenCategories}
+        useBengaliDigits={settings?.useBengaliDigits ?? true}
+        customCategories={settings?.customCategories || []}
+        customIncomeCategories={settings?.customIncomeCategories || []}
+        customExpenseCategories={settings?.customExpenseCategories || []}
+        hiddenCategories={settings?.hiddenCategories || []}
       />
 
       <NotificationDrawer

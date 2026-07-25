@@ -57,7 +57,7 @@ export async function loadTransactions(): Promise<Transaction[]> {
 
     if (data && data.length > 0) {
       const formattedData = calculateRunningBalances(data);
-      // ব্যাকআপের জন্য লোকাল স্টোরেজেও রেখে দেওয়া
+      // ব্যাকআপের জন্য লোকাল স্টোরেজেও রেখে দেওয়া
       localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(formattedData));
       return formattedData;
     }
@@ -79,7 +79,7 @@ export async function saveTransactions(transactions: Transaction[]): Promise<voi
     // লোকাল স্টোরেজে দ্রুত আপডেট
     localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(withBalances));
 
-    // Supabase-এ পাঠানোর আগে 'cashBalance' ফিল্ডটি বাদ দেওয়া হচ্ছে (কারণ এটি ডাটাবেজ কলামে নেই)
+    // Supabase-এ পাঠানোর আগে 'cashBalance' ফিল্ডটি বাদ দেওয়া হচ্ছে (কারণ এটি ডাটাবেজ কলামে নেই)
     const cleanTransactions = withBalances.map(({ cashBalance, ...rest }) => rest);
 
     // Supabase ডাটাবেজে সেভ/আপডেট
@@ -157,7 +157,7 @@ export async function loadShopInfo(): Promise<ShopInfo> {
       return { ...INITIAL_SHOP_INFO, ...data };
     }
 
-    // Supabase-এ ডেটা না থাকলে বা এরর হলে LocalStorage থেকে ব্যাকআপ পড়া
+    // Supabase-এ ডেটা না থাকলে বা এরর হলে LocalStorage থেকে ব্যাকআপ পড়া
     const raw = localStorage.getItem(KEYS.SHOP_INFO);
     return raw ? JSON.parse(raw) : INITIAL_SHOP_INFO;
   } catch (err) {
@@ -259,3 +259,6 @@ export function getLastSyncTime(): string {
 export function resetAllToDefault() {
   localStorage.clear();
 }
+
+// 🟢 App.tsx এর জন্য Supabase এক্সপোর্ট
+export { supabase };
