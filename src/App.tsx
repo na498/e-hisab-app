@@ -138,8 +138,6 @@ export default function App() {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('Realtime sync connected!');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          supabase.removeChannel(channel);
         }
       });
 
@@ -359,7 +357,7 @@ export default function App() {
         displayDate: displayDateStr,
         type: 'income',
         amount,
-        category: 'বাকি আদায়',
+        category: 'বাকি আদায়',
         description: `বাকি আদায়: ${description}`,
         customerName,
         customerPhone,

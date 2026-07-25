@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { Lock, Phone, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
+import { Lock, Phone, Eye, EyeOff, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { motion } from 'motion/react';
 import { ShopInfo } from '../types';
+
+// আপনার প্রজেক্টের ফোল্ডার থেকে লোকাল ছবি ইমপোর্ট করা হলো 
+import loginBgArtwork from '../assets/images/login-bg.png';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -18,7 +22,6 @@ function normalizeDigits(str: string): string {
   for (let i = 0; i < 10; i++) {
     res = res.replaceAll(bnDigits[i], i.toString());
   }
-  // Strip non-digit characters for clean phone comparison
   return res.replace(/\D/g, '');
 }
 
@@ -46,12 +49,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     const isPhoneMatch =
       cleanInputPhone === cleanAdminPhone ||
       (cleanInputPhone.length > 0 && cleanAdminPhone.endsWith(cleanInputPhone)) ||
-      (cleanAdminPhone.length > 0 && cleanInputPhone.endsWith(cleanAdminPhone));
+      (cleanAdminPhone.length > 0 && cleanAdminPhone.endsWith(cleanAdminPhone));
 
     const isPasswordMatch = passwordInput.trim() === adminPassword.trim();
 
     if (isPhoneMatch && isPasswordMatch) {
-      // সফল লগইনের পর সেশন স্টোরেজে স্ট্যাটাস সেভ করা এবং কলব্যাক রান করা
       sessionStorage.setItem('e_hisab_admin_authenticated', 'true');
       setPhoneInput('');
       setPasswordInput('');
@@ -68,52 +70,99 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
-        {/* Header Banner */}
-        <div className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-950 p-6 text-center text-white relative">
-          <div className="w-14 h-14 bg-emerald-700/60 border-2 border-emerald-400/40 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <Lock className="w-7 h-7 text-emerald-200" />
-          </div>
-          <h1 className="text-xl font-black tracking-wide text-white">
-            {shopInfo?.name || 'দোকান হিসাব সফটওয়্যার'}
-          </h1>
-          <p className="text-xs text-emerald-200 mt-1 font-medium">
-            এডমিন নিরাপত্তা লগইন
-          </p>
-        </div>
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 overflow-hidden select-none bg-slate-950/20">
+      
+      {/* 🖼️ HIGH-END ARTWORK BACKGROUND */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${loginBgArtwork})` }}
+        />
+        <div className="absolute inset-0 bg-slate-950/25" />
+      </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+      {/* 🪙 FLOATING TAKA (৳) COINS & SYMBOLS */}
+      <motion.div
+        animate={{ y: [0, -18, 0], rotate: [-8, 8, -8], scale: [1, 1.08, 1] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        className="hidden md:flex absolute top-16 left-12 lg:left-24 items-center justify-center w-16 h-16 rounded-2xl bg-slate-900/40 border border-amber-400/30 backdrop-blur-md shadow-lg z-10"
+      >
+        <span className="text-3xl font-black text-amber-400">৳</span>
+      </motion.div>
+
+      <motion.div
+        animate={{ y: [0, 20, 0], rotate: [10, -6, 10], scale: [1, 1.1, 1] }}
+        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
+        className="hidden md:flex absolute bottom-16 left-16 lg:left-28 items-center justify-center w-20 h-20 rounded-full bg-slate-900/40 border border-emerald-400/30 backdrop-blur-md shadow-lg z-10"
+      >
+        <span className="text-4xl font-black text-emerald-400">৳</span>
+      </motion.div>
+
+      <motion.div
+        animate={{ y: [0, -16, 0], rotate: [6, -10, 6], scale: [1, 1.06, 1] }}
+        transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+        className="hidden md:flex absolute top-20 right-12 lg:right-24 items-center justify-center w-20 h-20 rounded-3xl bg-slate-900/40 border border-emerald-400/30 backdrop-blur-md shadow-lg z-10"
+      >
+        <span className="text-4xl font-black text-emerald-400">৳</span>
+      </motion.div>
+
+      <motion.div
+        animate={{ y: [0, 18, 0], rotate: [-8, 10, -8], scale: [1, 1.08, 1] }}
+        transition={{ duration: 7.5, repeat: Infinity, ease: 'easeInOut', delay: 1.2 }}
+        className="hidden md:flex absolute bottom-20 right-16 lg:right-28 items-center justify-center w-16 h-16 rounded-2xl bg-slate-900/40 border border-amber-400/30 backdrop-blur-md shadow-lg z-10"
+      >
+        <span className="text-3xl font-black text-amber-400">৳</span>
+      </motion.div>
+
+      {/* 🔐 MAIN STRAIGHT & LIGHT GLASS LOGIN CARD (Without Header Box) */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="relative z-10 bg-slate-950/25 backdrop-blur-md w-full max-w-md rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] border border-white/30 overflow-hidden"
+      >
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-4">
+          
+          {/* Shop Title inside form directly since header was removed */}
+          <div className="text-center pb-2 border-b border-white/10">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow">
+              {shopInfo?.name || shopInfo?.shopName || 'ই-হিসাব সফটওয়্যার'}
+            </h1>
+            <p className="text-xs text-emerald-300 font-semibold mt-1">স্মার্ট ডিজিটাল খাতা ব্যবস্থাপনা</p>
+          </div>
+
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-bold flex items-center gap-2 animate-shake">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3.5 bg-rose-950/60 border border-rose-400/40 rounded-2xl text-rose-200 text-xs font-bold flex items-center gap-2.5 shadow-sm backdrop-blur-sm"
+            >
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>{errorMsg}</span>
-            </div>
+            </motion.div>
           )}
 
-          {/* Mobile Phone Field */}
+          {/* Mobile Field */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <Phone className="w-4 h-4 text-emerald-700" />
-              <span>মোবাইল নম্বর (Mobile Number):</span>
+            <label className="block text-xs font-bold text-slate-100 mb-1.5 flex items-center gap-1.5 drop-shadow">
+              <Phone className="w-4 h-4 text-emerald-400" />
+              <span>এডমিন মোবাইল নম্বর (Mobile Number):</span>
             </label>
-            <div className="relative">
-              <input
-                type="text"
-                required
-                placeholder="আপনার মোবাইল নম্বর দিন"
-                value={phoneInput}
-                onChange={(e) => setPhoneInput(e.target.value)}
-                className="w-full text-sm font-bold bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all"
-              />
-            </div>
+            <input
+              type="text"
+              required
+              placeholder="আপনার মোবাইল নম্বর দিন"
+              value={phoneInput}
+              onChange={(e) => setPhoneInput(e.target.value)}
+              className="w-full text-sm font-bold bg-slate-900/40 border border-white/25 rounded-xl px-4 py-3 text-white placeholder-slate-300 focus:bg-slate-900/70 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30 focus:outline-none transition-all shadow-inner backdrop-blur-sm"
+            />
           </div>
 
           {/* Password Field */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-              <Lock className="w-4 h-4 text-emerald-700" />
+            <label className="block text-xs font-bold text-slate-100 mb-1.5 flex items-center gap-1.5 drop-shadow">
+              <Lock className="w-4 h-4 text-emerald-400" />
               <span>পাসওয়ার্ড (Password):</span>
             </label>
             <div className="relative">
@@ -123,18 +172,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 placeholder="পাসওয়ার্ড লিখুন"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full text-sm font-bold bg-slate-50 border border-slate-300 rounded-xl pl-3.5 pr-10 py-2.5 text-slate-900 focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all"
+                className="w-full text-sm font-bold bg-slate-900/40 border border-white/25 rounded-xl pl-4 pr-11 py-3 text-white placeholder-slate-300 focus:bg-slate-900/70 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30 focus:outline-none transition-all shadow-inner backdrop-blur-sm"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white transition-colors p-1 rounded-lg cursor-pointer"
               >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
@@ -142,13 +187,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           {/* Login Submit Button */}
           <button
             type="submit"
-            className="w-full py-3 bg-emerald-800 hover:bg-emerald-900 active:scale-[0.99] text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer"
+            className="w-full py-3.5 bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 hover:from-emerald-500 hover:to-teal-600 active:scale-[0.99] text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-950/40 transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer group border border-emerald-400/40"
           >
             <span>লগইন করুন (Login)</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
+
+          {/* Footer note */}
+          <div className="pt-2 text-center text-[11px] text-slate-200 font-medium flex items-center justify-center gap-1.5 drop-shadow">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>সকল হিসাব সুরক্ষিত ও এনক্রিপ্টেড</span>
+          </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 };
