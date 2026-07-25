@@ -38,11 +38,11 @@ import { NotificationDrawer } from './components/NotificationDrawer';
 import { formatShortMonthDay } from './utils/formatters';
 
 export default function App() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [customerDues, setCustomerDues] = useState<CustomerDue[]>([]);
-  const [shopInfo, setShopInfo] = useState<ShopInfo>(loadShopInfo());
-  const [settings, setSettings] = useState<UserSettings>(loadSettings());
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>(() => loadTransactions());
+  const [customerDues, setCustomerDues] = useState<CustomerDue[]>(() => loadCustomerDues());
+  const [shopInfo, setShopInfo] = useState<ShopInfo>(() => loadShopInfo());
+  const [settings, setSettings] = useState<UserSettings>(() => loadSettings());
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => loadNotifications());
   const [lastSyncTime, setLastSyncTime] = useState<string>(getLastSyncTime());
 
   // UI Navigation & Modals
@@ -72,69 +72,59 @@ export default function App() {
     const fetchApiData = async () => {
       try {
         const [txRes, duesRes, shopRes, setRes] = await Promise.all([
-          fetch('/api/transactions'),
-          fetch('/api/dues'),
-          fetch('/api/shop-info'),
-          fetch('/api/settings'),
+          fetch('/api/transactions').catch(() => null),
+          fetch('/api/dues').catch(() => null),
+          fetch('/api/shop-info').catch(() => null),
+          fetch('/api/settings').catch(() => null),
         ]);
 
-        if (txRes.ok) {
-          const apiTx = await txRes.json();
+        if (txRes && txRes.ok) {
+          const apiTx = await txRes.json().catch(() => null);
           if (Array.isArray(apiTx) && apiTx.length > 0) {
             setTransactions(apiTx);
             saveTransactions(apiTx);
-          } else {
-            const tx = await loadTransactions();
-            setTransactions(tx);
           }
-        } else {
-          const tx = await loadTransactions();
-          setTransactions(tx);
         }
 
-        if (duesRes.ok) {
-          const apiDues = await duesRes.json();
+        if (duesRes && duesRes.ok) {
+          const apiDues = await duesRes.json().catch(() => null);
           if (Array.isArray(apiDues) && apiDues.length > 0) {
             setCustomerDues(apiDues);
             saveCustomerDues(apiDues);
-            } else {
-              const dues = await loadCustomerDues();
-              setCustomerDues(dues);
-            }
-        } else {
-          const dues = await loadCustomerDues();
-          setCustomerDues(dues);
-        }
-
-        if (shopRes.ok) {
-          const apiShop = await shopRes.json();
-          if (apiShop && apiShop.shopName) {
-            setShopInfo(apiShop);
-            saveShopInfo(apiShop);
           }
         }
 
-        if (setRes.ok) {
-          const apiSet = await setRes.json();
+        if (shopRes && shopRes.ok) {
+          const apiShop = await shopRes.json().catch(() => null);
+          if (apiShop && apiShop.shopName) {
+            const localShop = loadShopInfo();
+            const mergedShop = {
+              ...apiShop,
+              ownerName: localShop.ownerName || apiShop.ownerName || '',
+              managerName: localShop.managerName || apiShop.managerName || '',
+            };
+            setShopInfo(mergedShop);
+            saveShopInfo(mergedShop);
+          }
+        }
+
+        if (setRes && setRes.ok) {
+          const apiSet = await setRes.json().catch(() => null);
           if (apiSet && typeof apiSet.useBengaliDigits === 'boolean') {
-            setSettings(apiSet);
-            saveSettings(apiSet);
+            const localSet = loadSettings();
+            const mergedSet = { ...localSet, ...apiSet };
+            setSettings(mergedSet);
+            saveSettings(mergedSet);
           }
         }
       } catch (err) {
         console.warn('API connection offline or falling back to localStorage:', err);
-        const tx = await loadTransactions();
-        setTransactions(tx);
-        const dues = await loadCustomerDues();
-        setCustomerDues(dues);
-        setShopInfo(loadShopInfo());
-        setSettings(loadSettings());
       }
     };
 
     fetchApiData();
     setNotifications(loadNotifications());
-    setIsLocked(settings.pinEnabled);
+    setIsLocked(Boolean(settings?.pinEnabled));
   }, []);
 
   // Window Online/Offline listener
@@ -570,8 +560,8 @@ export default function App() {
   };
 
   // Calculate due count
-  const activeDueCount = customerDues.filter(
-    (c) => c.totalDue - c.totalPaid > 0
+  const activeDueCount = (customerDues || []).filter(
+    (c) => c && ((c.totalDue || 0) - (c.totalPaid || 0) > 0)
   ).length;
 
   return (

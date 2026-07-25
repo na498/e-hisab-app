@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Store,
   Lock,
@@ -116,9 +116,33 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
   } | null>(null);
   const [confirmResetPresets, setConfirmResetPresets] = useState<boolean>(false);
 
+  // Keep form fields synced when shopInfo or settings props update
+  useEffect(() => {
+    if (shopInfo) {
+      setSName(shopInfo.shopName || '');
+      setBName(shopInfo.branchName || '');
+      setOName(shopInfo.ownerName || '');
+      setMName(shopInfo.managerName || '');
+      setPhone(shopInfo.phone || '');
+      setAddress(shopInfo.address || '');
+    }
+  }, [shopInfo]);
+
+  useEffect(() => {
+    if (settings) {
+      setPinCode(settings.pin || '1234');
+      setPinEnabled(Boolean(settings.pinEnabled));
+      setAdminPhone(settings.adminPhone || '01810957959');
+      setAdminPassword(settings.adminPassword || '01810957959');
+      setAuthEnabled(settings.authEnabled ?? true);
+      setMonthStartDay(settings.monthStartDay || 1);
+    }
+  }, [settings]);
+
   const handleSaveShopInfo = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateShopInfo({
+      ...shopInfo,
       shopName: sName,
       branchName: bName,
       ownerName: oName,

@@ -463,7 +463,7 @@ export function CashMemoModal({
 
             {/* Footer */}
             <div className="mt-2 text-center text-[9px] border-t border-dotted border-gray-400 pt-1">
-              <p className="m-0 font-medium">আমাদের থেকে সেবা/পণ্য ক্রয়ের জন্য ধন্যবাদ।</p>
+              <p className="m-0 font-medium">আমাদের থেকে সেবা নেওয়ার জন্য ধন্যবাদ।</p>
               <p className="text-[8px] text-gray-500 m-0">Sold by: {siteConfig.storeName}</p>
             </div>
           </div>

@@ -47,36 +47,43 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   customIncomeCategories,
   customExpenseCategories,
 }) => {
+  // Safe fallback arrays
+  const safeTx = Array.isArray(transactions) ? transactions : [];
+  const safeDues = Array.isArray(customerDues) ? customerDues : [];
+
   // Current Totals
-  console.log("transactions =", transactions);
-  console.log("Is Array =", Array.isArray(transactions));
-  const totalIncome = transactions.reduce(
-    (acc, t) => (t.type === 'income' ? acc + t.amount : acc),
+  const totalIncome = safeTx.reduce(
+    (acc, t) => (t && t.type === 'income' ? acc + (Number(t.amount) || 0) : acc),
     0
   );
-  const totalExpense = transactions.reduce(
-    (acc, t) => (t.type === 'expense' ? acc + t.amount : acc),
+  const totalExpense = safeTx.reduce(
+    (acc, t) => (t && t.type === 'expense' ? acc + (Number(t.amount) || 0) : acc),
     0
   );
   const currentCashBalance =
-    transactions.length > 0
-      ? transactions[transactions.length - 1].cashBalance || 0
+    safeTx.length > 0
+      ? safeTx[safeTx.length - 1]?.cashBalance || 0
       : 0;
 
-  const totalDuesOutstanding = customerDues.reduce(
-    (acc, c) => acc + (c.totalDue - c.totalPaid),
+  const totalDuesOutstanding = safeDues.reduce(
+    (acc, c) => acc + ((Number(c?.totalDue) || 0) - (Number(c?.totalPaid) || 0)),
     0
   );
 
   // Recent 5 transactions
-  const recentTransactions = [...transactions]
-    .sort((a, b) => b.createdAt - a.createdAt)
+  const recentTransactions = [...safeTx]
+    .filter(Boolean)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
     .slice(0, 5);
 
   // Top Due Customers
-  const topDueCustomers = [...customerDues]
-    .filter((c) => c.totalDue - c.totalPaid > 0)
-    .sort((a, b) => b.totalDue - b.totalPaid - (a.totalDue - a.totalPaid))
+  const topDueCustomers = [...safeDues]
+    .filter((c) => c && (Number(c.totalDue) || 0) - (Number(c.totalPaid) || 0) > 0)
+    .sort((a, b) => {
+      const dueA = (Number(a.totalDue) || 0) - (Number(a.totalPaid) || 0);
+      const dueB = (Number(b.totalDue) || 0) - (Number(b.totalPaid) || 0);
+      return dueB - dueA;
+    })
     .slice(0, 4);
 
   return (
@@ -102,7 +109,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               {formatCurrency(totalIncome, useBengaliDigits)}
             </p>
             <p className="text-[11px] text-emerald-300 mt-1 flex items-center justify-between">
-              <span>{toBengaliNumber(transactions.filter((t) => t.type === 'income').length, useBengaliDigits)} টি জমার এন্ট্রি</span>
+              <span>{toBengaliNumber(safeTx.filter((t) => t && t.type === 'income').length, useBengaliDigits)} টি জমার এন্ট্রি</span>
              </p>
           </div>
         </div>

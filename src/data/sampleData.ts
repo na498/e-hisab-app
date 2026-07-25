@@ -4,8 +4,8 @@ import { DEFAULT_PRESETS } from '../utils/constants';
 export const INITIAL_SHOP_INFO: ShopInfo = {
   shopName: 'ই-সেন্টার',
   branchName: 'চাম্পাফুল',
-  ownerName: 'মালিকের নাম',
-  managerName: 'দোকান পরিচালকের নাম',
+  ownerName: '',
+  managerName: '',
   phone: '০১৮১০৯৫৭৯৫৯',
   address: 'উজিরপুর বাজার, চাম্পাফুল, কালিগঞ্জ, সাতক্ষীরা।',
 };

@@ -1,8 +1,10 @@
-import { supabase } from './supabase';
 import { Transaction, CustomerDue, ShopInfo, UserSettings, AppNotification } from '../types';
 import {
   INITIAL_SHOP_INFO,
   INITIAL_SETTINGS,
+  INITIAL_TRANSACTIONS,
+  INITIAL_CUSTOMER_DUES,
+  INITIAL_NOTIFICATIONS,
 } from '../data/sampleData';
 
 const KEYS = {
@@ -15,20 +17,24 @@ const KEYS = {
 };
 
 export function calculateRunningBalances(transactions: Transaction[]): Transaction[] {
-  // Sort transactions chronologically
-  const sorted = [...transactions].sort((a, b) => {
-    if (a.date === b.date) {
-      return a.createdAt - b.createdAt;
+  if (!Array.isArray(transactions)) return [];
+  const valid = transactions.filter((t) => t && typeof t === 'object');
+  const sorted = [...valid].sort((a, b) => {
+    const dateA = a.date || '';
+    const dateB = b.date || '';
+    if (dateA === dateB) {
+      return (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0);
     }
-    return a.date.localeCompare(b.date);
+    return dateA.localeCompare(dateB);
   });
 
   let runningCash = 0;
   return sorted.map((tx) => {
+    const amt = Number(tx.amount) || 0;
     if (tx.type === 'income') {
-      runningCash += Number(tx.amount || 0);
+      runningCash += amt;
     } else if (tx.type === 'expense') {
-      runningCash -= Number(tx.amount || 0);
+      runningCash -= amt;
     }
     return {
       ...tx,
@@ -37,101 +43,55 @@ export function calculateRunningBalances(transactions: Transaction[]): Transacti
   });
 }
 
-// --- TRANSACTIONS ---
-export async function loadTransactions(): Promise<Transaction[]> {
+export function loadTransactions(): Transaction[] {
   try {
-    // ১. প্রথমে Supabase থেকে ডাটা আনার চেষ্টা
-    const { data: dbData, error } = await supabase.from('transactions').select('*');
-
-    if (!error && dbData && dbData.length > 0) {
-      const formattedTx: Transaction[] = dbData.map((row) => ({
-        id: row.id,
-        date: row.date || '',
-        time: row.time || '',
-        displayDate: row.display_date || '',
-        type: row.type || 'income',
-        amount: Number(row.amount) || 0,
-        category: row.category || '',
-        description: row.description || '',
-        customerName: row.customer_name || '',
-        customerPhone: row.customer_phone || '',
-        createdAt: Number(row.created_at) || Date.now(),
-      }));
-
-      const withBalances = calculateRunningBalances(formattedTx);
-      localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(withBalances));
-      return withBalances;
-    }
-
-    // ২. ফলব্যাক হিসেবে LocalStorage থেকে ডাটা নেওয়া
     const raw = localStorage.getItem(KEYS.TRANSACTIONS);
-    if (raw) {
-      const parsed: Transaction[] = JSON.parse(raw);
-      return calculateRunningBalances(parsed);
+    if (!raw) {
+      saveTransactions([]);
+      return [];
     }
-
-    return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? calculateRunningBalances(parsed) : [];
   } catch (err) {
     console.error('Error loading transactions', err);
     return [];
   }
 }
 
-export async function saveTransactions(transactions: Transaction[]) {
+export function saveTransactions(transactions: Transaction[]) {
   try {
-    const withBalances = calculateRunningBalances(transactions);
+    const withBalances = calculateRunningBalances(transactions || []);
     localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(withBalances));
     localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
-
-    // 🚀 সরাসরি Supabase টেবিলে Upsert (Insert/Update) করা
-    const payload = withBalances.map((tx) => ({
-      id: tx.id,
-      date: tx.date,
-      time: tx.time,
-      display_date: tx.displayDate,
-      type: tx.type,
-      amount: tx.amount,
-      category: tx.category,
-      description: tx.description,
-      customer_name: tx.customerName || null,
-      customer_phone: tx.customerPhone || null,
-      created_at: tx.createdAt,
-    }));
-
-    const { error } = await supabase.from('transactions').upsert(payload);
-
-    if (error) {
-      console.error('Supabase Sync Error (Transactions):', error.message);
-    } else {
-      console.log('Successfully synced transactions to Supabase!');
-    }
   } catch (err) {
     console.error('Error saving transactions', err);
   }
 }
 
-// --- CUSTOMER DUES ---
-export async function loadCustomerDues(): Promise<CustomerDue[]> {
+export function loadCustomerDues(): CustomerDue[] {
   try {
     const raw = localStorage.getItem(KEYS.CUSTOMER_DUES);
-    if (!raw) return [];
-    return JSON.parse(raw);
+    if (!raw) {
+      saveCustomerDues([]);
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
   } catch (err) {
     console.error('Error loading customer dues', err);
     return [];
   }
 }
 
-export async function saveCustomerDues(dues: CustomerDue[]) {
+export function saveCustomerDues(dues: CustomerDue[]) {
   try {
-    localStorage.setItem(KEYS.CUSTOMER_DUES, JSON.stringify(dues));
+    localStorage.setItem(KEYS.CUSTOMER_DUES, JSON.stringify(dues || []));
     localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
   } catch (err) {
     console.error('Error saving customer dues', err);
   }
 }
 
-// --- SHOP INFO ---
 export function loadShopInfo(): ShopInfo {
   try {
     const raw = localStorage.getItem(KEYS.SHOP_INFO);
@@ -139,7 +99,8 @@ export function loadShopInfo(): ShopInfo {
       saveShopInfo(INITIAL_SHOP_INFO);
       return INITIAL_SHOP_INFO;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? { ...INITIAL_SHOP_INFO, ...parsed } : INITIAL_SHOP_INFO;
   } catch (err) {
     return INITIAL_SHOP_INFO;
   }
@@ -153,7 +114,6 @@ export function saveShopInfo(info: ShopInfo) {
   }
 }
 
-// --- SETTINGS ---
 export function loadSettings(): UserSettings {
   try {
     const raw = localStorage.getItem(KEYS.SETTINGS);
@@ -161,7 +121,8 @@ export function loadSettings(): UserSettings {
       saveSettings(INITIAL_SETTINGS);
       return INITIAL_SETTINGS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? { ...INITIAL_SETTINGS, ...parsed } : INITIAL_SETTINGS;
   } catch (err) {
     return INITIAL_SETTINGS;
   }
@@ -175,7 +136,6 @@ export function saveSettings(settings: UserSettings) {
   }
 }
 
-// --- NOTIFICATIONS ---
 export function loadNotifications(): AppNotification[] {
   try {
     const raw = localStorage.getItem(KEYS.NOTIFICATIONS);
@@ -183,7 +143,8 @@ export function loadNotifications(): AppNotification[] {
       saveNotifications([]);
       return [];
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
     return [];
   }
