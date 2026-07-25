@@ -43,7 +43,7 @@ export function calculateRunningBalances(transactions: Transaction[]): Transacti
 }
 
 /* ==========================================
-   ১. লেনদেন (TRANSACTIONS)
+    ১. লেনদেন (TRANSACTIONS)
 ========================================== */
 export async function loadTransactions(): Promise<Transaction[]> {
   try {
@@ -79,10 +79,13 @@ export async function saveTransactions(transactions: Transaction[]): Promise<voi
     // লোকাল স্টোরেজে দ্রুত আপডেট
     localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(withBalances));
 
+    // Supabase-এ পাঠানোর আগে 'cashBalance' ফিল্ডটি বাদ দেওয়া হচ্ছে (কারণ এটি ডাটাবেজ কলামে নেই)
+    const cleanTransactions = withBalances.map(({ cashBalance, ...rest }) => rest);
+
     // Supabase ডাটাবেজে সেভ/আপডেট
     const { error } = await supabase
       .from('transactions')
-      .upsert(withBalances, { onConflict: 'id' });
+      .upsert(cleanTransactions, { onConflict: 'id' });
 
     if (error) {
       console.error("Supabase Save Error:", error.message);
@@ -95,7 +98,7 @@ export async function saveTransactions(transactions: Transaction[]): Promise<voi
 }
 
 /* ==========================================
-   ২. কাস্টমার বাকি (CUSTOMER DUES)
+    ২. কাস্টমার বাকি (CUSTOMER DUES)
 ========================================== */
 export async function loadCustomerDues(): Promise<CustomerDue[]> {
   try {
@@ -118,13 +121,16 @@ export async function loadCustomerDues(): Promise<CustomerDue[]> {
 
 export async function saveCustomerDues(dues: CustomerDue[]): Promise<void> {
   try {
-    localStorage.setItem(KEYS.CUSTOMER_DUES, JSON.stringify(dues || []));
+    const cleanDues = dues || [];
+    localStorage.setItem(KEYS.CUSTOMER_DUES, JSON.stringify(cleanDues));
     
     const { error } = await supabase
       .from('customer_dues')
-      .upsert(dues || [], { onConflict: 'id' });
+      .upsert(cleanDues, { onConflict: 'id' });
 
-    if (!error) {
+    if (error) {
+      console.error("Supabase Customer Dues Save Error:", error.message);
+    } else {
       localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
     }
   } catch (err) {
@@ -133,49 +139,99 @@ export async function saveCustomerDues(dues: CustomerDue[]): Promise<void> {
 }
 
 /* ==========================================
-   ৩. শপ ও সেটিংস (SHOP INFO & SETTINGS)
+    ৩. শপ ও সেটিংস (SHOP INFO & SETTINGS)
 ========================================== */
-export function loadShopInfo(): ShopInfo {
+export async function loadShopInfo(): Promise<ShopInfo> {
   try {
+    // ১. প্রথমে Supabase থেকে শপ ইনফো লোড করার চেষ্টা
+    const { data, error } = await supabase
+      .from('shop_info')
+      .select('*')
+      .eq('id', 'main_shop')
+      .maybeSingle();
+
+    if (error) console.error('Error loading shop info from Supabase:', error.message);
+
+    if (data) {
+      localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(data));
+      return { ...INITIAL_SHOP_INFO, ...data };
+    }
+
+    // Supabase-এ ডেটা না থাকলে বা এরর হলে LocalStorage থেকে ব্যাকআপ পড়া
     const raw = localStorage.getItem(KEYS.SHOP_INFO);
-    if (!raw) {
-      saveShopInfo(INITIAL_SHOP_INFO);
-      return INITIAL_SHOP_INFO;
-    }
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? { ...INITIAL_SHOP_INFO, ...parsed } : INITIAL_SHOP_INFO;
+    return raw ? JSON.parse(raw) : INITIAL_SHOP_INFO;
   } catch (err) {
-    return INITIAL_SHOP_INFO;
+    console.error('Error in loadShopInfo:', err);
+    const raw = localStorage.getItem(KEYS.SHOP_INFO);
+    return raw ? JSON.parse(raw) : INITIAL_SHOP_INFO;
   }
 }
 
-export function saveShopInfo(info: ShopInfo) {
+export async function saveShopInfo(info: ShopInfo): Promise<void> {
   try {
+    // LocalStorage এ দ্রুত সেভ
     localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(info));
-  } catch (err) {
-    console.error('Error saving shop info', err);
-  }
-}
 
-export function loadSettings(): UserSettings {
-  try {
-    const raw = localStorage.getItem(KEYS.SETTINGS);
-    if (!raw) {
-      saveSettings(INITIAL_SETTINGS);
-      return INITIAL_SETTINGS;
+    // Supabase এ সিঙ্ক করা
+    const shopData = { id: 'main_shop', ...info };
+    const { error } = await supabase
+      .from('shop_info')
+      .upsert(shopData, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Error saving shop info to Supabase:', error.message);
+    } else {
+      localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
     }
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? { ...INITIAL_SETTINGS, ...parsed } : INITIAL_SETTINGS;
   } catch (err) {
-    return INITIAL_SETTINGS;
+    console.error('Error saving shop info:', err);
   }
 }
 
-export function saveSettings(settings: UserSettings) {
+export async function loadSettings(): Promise<UserSettings> {
   try {
-    localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+    // ১. Supabase থেকে সেটিংস লোড করা
+    const { data, error } = await supabase
+      .from('settings')
+      .select('*')
+      .eq('id', 'main_settings')
+      .maybeSingle();
+
+    if (error) console.error('Error loading settings from Supabase:', error.message);
+
+    if (data) {
+      localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data));
+      return { ...INITIAL_SETTINGS, ...data };
+    }
+
+    // LocalStorage ব্যাকআপ
+    const raw = localStorage.getItem(KEYS.SETTINGS);
+    return raw ? JSON.parse(raw) : INITIAL_SETTINGS;
   } catch (err) {
-    console.error('Error saving settings', err);
+    console.error('Error in loadSettings:', err);
+    const raw = localStorage.getItem(KEYS.SETTINGS);
+    return raw ? JSON.parse(raw) : INITIAL_SETTINGS;
+  }
+}
+
+export async function saveSettings(settings: UserSettings): Promise<void> {
+  try {
+    // LocalStorage এ দ্রুত সেভ
+    localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+
+    // Supabase এ সিঙ্ক করা
+    const settingsData = { id: 'main_settings', ...settings };
+    const { error } = await supabase
+      .from('settings')
+      .upsert(settingsData, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Error saving settings to Supabase:', error.message);
+    } else {
+      localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
+    }
+  } catch (err) {
+    console.error('Error saving settings:', err);
   }
 }
 

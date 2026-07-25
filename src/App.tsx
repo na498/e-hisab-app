@@ -39,8 +39,27 @@ import { formatShortMonthDay } from './utils/formatters';
 export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customerDues, setCustomerDues] = useState<CustomerDue[]>([]);
-  const [shopInfo, setShopInfo] = useState<ShopInfo>(() => loadShopInfo());
-  const [settings, setSettings] = useState<UserSettings>(() => loadSettings());
+  const [shopInfo, setShopInfo] = useState<ShopInfo>({
+    name: 'ই-হিসাব',
+    owner: '',
+    phone: '',
+    address: '',
+    logo: ''
+  });
+  const [settings, setSettings] = useState<UserSettings>({
+    pin: '1234',
+    pinEnabled: false,
+    authEnabled: true,
+    adminPhone: '01810957959',
+    adminPassword: '01810957959',
+    useBengaliDigits: true,
+    monthStartDay: 1,
+    quickPresets: [],
+    customCategories: [],
+    customIncomeCategories: [],
+    customExpenseCategories: [],
+    hiddenCategories: []
+  });
   const [notifications, setNotifications] = useState<AppNotification[]>(() => loadNotifications());
   const [lastSyncTime, setLastSyncTime] = useState<string>(getLastSyncTime());
 
@@ -49,7 +68,7 @@ export default function App() {
   const [isNewTxModalOpen, setIsNewTxModalOpen] = useState<boolean>(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState<boolean>(false);
-  const [isLocked, setIsLocked] = useState<boolean>(Boolean(settings?.pinEnabled));
+  const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return sessionStorage.getItem('e_hisab_admin_authenticated') === 'true';
@@ -75,8 +94,13 @@ export default function App() {
         const loadedDues = await loadCustomerDues();
         setCustomerDues(loadedDues);
 
-        setShopInfo(loadShopInfo());
-        setSettings(loadSettings());
+        const loadedShop = await loadShopInfo();
+        setShopInfo(loadedShop);
+
+        const loadedSet = await loadSettings();
+        setSettings(loadedSet);
+        setIsLocked(Boolean(loadedSet?.pinEnabled));
+
         setNotifications(loadNotifications());
       } catch (err) {
         console.error('Error fetching initial data:', err);
@@ -84,7 +108,6 @@ export default function App() {
     };
 
     fetchInitialData();
-    setIsLocked(Boolean(settings?.pinEnabled));
   }, []);
 
   // Window Online/Offline listener
@@ -114,14 +137,16 @@ export default function App() {
     setLastSyncTime(new Date().toISOString());
   }, []);
 
-  const updateShopInfoState = useCallback((info: ShopInfo) => {
+  const updateShopInfoState = useCallback(async (info: ShopInfo) => {
     setShopInfo(info);
-    saveShopInfo(info);
+    await saveShopInfo(info);
+    setLastSyncTime(new Date().toISOString());
   }, []);
 
-  const updateSettingsState = useCallback((set: UserSettings) => {
+  const updateSettingsState = useCallback(async (set: UserSettings) => {
     setSettings(set);
-    saveSettings(set);
+    await saveSettings(set);
+    setLastSyncTime(new Date().toISOString());
   }, []);
 
   const updateNotificationsState = useCallback((notifs: AppNotification[]) => {
