@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   loadTransactions,
   saveTransactions,
-  deleteTransactionFromSupabase, // 🟢 ডিলিট ফাংশন ইম্পোর্ট
+  deleteTransactionFromSupabase,
   loadCustomerDues,
   saveCustomerDues,
-  deleteCustomerFromSupabase, // 🟢 ডিলিট ফাংশন ইম্পোর্ট
+  deleteCustomerFromSupabase,
   loadShopInfo,
   saveShopInfo,
   loadSettings,
@@ -87,93 +87,88 @@ export default function App() {
     sessionStorage.removeItem('e_hisab_admin_authenticated');
   };
 
-  // 🔄 ডাটা লোড করার কেন্দ্রীয় ফাংশন (লাইভ সিঙ্কের জন্য)
+  // 🟢 ডাটা লোড করার কেন্দ্রীয় ফাংশন (অবজেক্ট স্প্রেড সহ রি-রেন্ডার নিশ্চিতকরণ)
   const fetchAllData = useCallback(async () => {
     try {
-      const loadedTx = await loadTransactions();
-      setTransactions(loadedTx || []);
+      const [txData, duesData, shopData, settingsData] = await Promise.all([
+        loadTransactions(),
+        loadCustomerDues(),
+        loadShopInfo(),
+        loadSettings(),
+      ]);
 
-      const loadedDues = await loadCustomerDues();
-      setCustomerDues(loadedDues || []);
-
-      const loadedShop = await loadShopInfo();
-      if (loadedShop) setShopInfo(loadedShop);
-
-      const loadedSet = await loadSettings();
-      if (loadedSet) {
-        setSettings(loadedSet);
-        setIsLocked(Boolean(loadedSet?.pinEnabled));
+      setTransactions(txData || []);
+      setCustomerDues(duesData || []);
+      if (shopData) setShopInfo(shopData);
+      
+      if (settingsData) {
+        setSettings({ ...settingsData }); // New object reference for live sync re-render
+        setIsLocked(Boolean(settingsData?.pinEnabled));
       }
 
       setNotifications(loadNotifications() || []);
       setLastSyncTime(new Date().toISOString());
-    } catch (err) {
-      console.error('Error fetching data:', err);
+    } catch (error) {
+      console.error("Error fetching all data:", error);
     }
   }, []);
 
-// 🟢 ১. fetchAllData ফাংশনটি ঠিক এরকম হতে হবে
-const fetchAllData = useCallback(async () => {
-  try {
-    // একসাথে সব ডাটা ফ্রেচ করা
-    const [txData, duesData, shopData, settingsData] = await Promise.all([
-      loadTransactions(),
-      loadCustomerDues(),
-      loadShopInfo(),
-      loadSettings(),
-    ]);
+  // 🟢 Realtime & Auto-Reconnect Subscription
+  useEffect(() => {
+    fetchAllData();
 
-    // রিঅ্যাক্ট স্টেট আপডেট নিশ্চিত করা
-    setTransactions(txData);
-    setCustomerDues(duesData);
-    setShopInfo(shopData);
-    setSettings({ ...settingsData }); // New object reference to trigger re-render
-  } catch (error) {
-    console.error("Error fetching all data:", error);
-  }
-}, []);
+    // ⚡ Supabase Realtime Subscription
+    const channel = supabase
+      .channel('e-hisab-live-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        (payload) => {
+          console.log('Realtime change detected:', payload);
+          fetchAllData(); // যেকোনো টেবিলে চেঞ্জ হলে ইনস্ট্যান্ট রি-লোড হবে
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime sync connected!');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          supabase.removeChannel(channel);
+        }
+      });
 
-// 🟢 ২. Realtime & Auto-Reconnect useEffect
-useEffect(() => {
-  // অ্যাপ লোড হলে প্রথম ফ্রেচ
-  fetchAllData();
-
-  // ⚡ Supabase Realtime Subscription
-  const channel = supabase
-    .channel('e-hisab-live-sync')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public' },
-      (payload) => {
-        console.log('Realtime change detected:', payload);
-        fetchAllData(); // যেকোনো টেবিলে (settings সহ) চেঞ্জ হলে সাথে সাথে রি-লোড হবে
+    // 📱 মোবাইল ব্যাকগ্রাউন্ড থেকে আবার সামনে আসলে বা স্ক্রিন অন হলে ফ্রেচ
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAllData();
       }
-    )
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('Realtime sync connected!');
-      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-        // কানেকশন ড্রপ করলে অটো রিকানেক্ট
-        supabase.removeChannel(channel);
-      }
-    });
+    };
 
-  // 📱 মোবাইল ব্যাকগ্রাউন্ড থেকে আবার সামনে আসলে বা স্ক্রিন অন হলে ফ্রেচ
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'visible') {
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [fetchAllData]);
+
+  // Window Online/Offline listener
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
       fetchAllData();
-    }
-  };
+    };
+    const handleOffline = () => setIsOnline(false);
 
-  window.addEventListener('visibilitychange', handleVisibilityChange);
-  window.addEventListener('focus', handleVisibilityChange); // বাড়তি ফোকাস লিসেনার
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
-  return () => {
-    supabase.removeChannel(channel);
-    window.removeEventListener('visibilitychange', handleVisibilityChange);
-    window.removeEventListener('focus', handleVisibilityChange);
-  };
-}, [fetchAllData]);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [fetchAllData]);
 
   // Save Helpers
   const updateTransactions = useCallback(async (newTxList: Transaction[]) => {
@@ -270,11 +265,11 @@ useEffect(() => {
     updateTransactions([...transactions, newTx]);
   };
 
-  // 🔴১. ট্রানজ্যাকশন স্থায়ীভাবে ডিলিট করার আপডেট করা ফনশন
+  // 🔴১. ট্রানজ্যাকশন স্থায়ীভাবে ডিলিট করার ফাংশন
   const handleDeleteTransaction = async (id: string) => {
     const filtered = transactions.filter((t) => t.id !== id);
     setTransactions(filtered);
-    await deleteTransactionFromSupabase(id); // Supabase DB থেকে মোছা হবে
+    await deleteTransactionFromSupabase(id);
   };
 
   // Handlers for Customer Dues
@@ -370,11 +365,11 @@ useEffect(() => {
     }
   };
 
-  // 🔴২. কাস্টমার স্থায়ীভাবে ডিলিট করার আপডেট করা ফনশন
+  // 🔴২. কাস্টমার স্থায়ীভাবে ডিলিট করার ফাংশন
   const handleDeleteCustomer = async (id: string) => {
     const filtered = customerDues.filter((c) => c.id !== id);
     setCustomerDues(filtered);
-    await deleteCustomerFromSupabase(id); // Supabase DB থেকে মোছা হবে
+    await deleteCustomerFromSupabase(id);
   };
 
   const handleUpdateCustomerPromiseDate = (
