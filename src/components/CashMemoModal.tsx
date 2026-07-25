@@ -99,11 +99,11 @@ export function CashMemoModal({
   // Site config fallback structure
   const siteConfig = {
     storeName: shopInfo.shopName || 'ই-সেন্টার',
-    storeSlogan: shopInfo.storeSlogan || 'শতভাগ সঠিক ও দ্রুত সার্ভিস',
+    storeSlogan: shopInfo.storeSlogan || 'এক ছাদের নিচে সবল ডিজিটাল সেবার বিশ্বস্ত ঠিকানা',
     storeLogo: shopInfo.storeLogo || '',
     contactOffice: shopInfo.contactOffice || shopInfo.address || 'উজিরপুর বাজার, চাম্পাফুল, কালিগঞ্জ, সাতক্ষীরা।',
-    contactPhone: shopInfo.contactPhone || shopInfo.phone || '০১৩০১-৬৩৬৪৬১',
-    contactEmail: shopInfo.contactEmail || 'info@ecenter.com',
+    contactPhone: shopInfo.contactPhone || shopInfo.phone || '০১৮১০-৯৫৭৯৫৯',
+    contactEmail: shopInfo.contactEmail || 'masumbillah10032002@gmail.com',
   };
 
   const orderDetails = {

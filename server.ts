@@ -34,7 +34,7 @@ const defaultShopInfo = {
   storeLogo: '',
   contactOffice: 'উজিরপুর বাজার, চাম্পাফুল, কালিগঞ্জ, সাতক্ষীরা।',
   contactPhone: '০১৮১০৯৫৭৯৫৯',
-  contactEmail: 'info@ecenter.com',
+  contactEmail: 'masumbillah10032002@gmail.com',
 };
 
 const defaultSettings = {
