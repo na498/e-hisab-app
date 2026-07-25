@@ -131,9 +131,9 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
           dayIncome += Number(tx.amount || 0);
         } else {
           dayExpense += Number(tx.amount || 0);
-        }
-        if (tx.category) {
-          catSet.add(tx.category);
+          if (tx.category) {
+            catSet.add(tx.category);
+          }
         }
       });
 
@@ -313,7 +313,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
 
       {/* Official Monthly Accounting Sheet Document Container */}
       <div
-        className="bg-white rounded-2xl shadow-xl border border-slate-300 p-6 sm:p-10 max-w-5xl mx-auto print:p-0 print:shadow-none print:border-none print:max-w-none text-slate-900 relative flex flex-col justify-between min-h-[265mm]"
+        className="bg-white rounded-2xl shadow-xl border border-slate-300 p-6 sm:p-10 max-w-5xl mx-auto print:p-0 print:shadow-none print:border-none print:max-w-none text-slate-900 relative flex flex-col justify-between min-h-[280mm]"
         id="printable-monthly-sheet"
       >
         <div>
@@ -339,7 +339,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
             >
               <thead>
                 {/* Header Titles */}
-                <tr className="bg-slate-100 font-bold text-slate-950" style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #000000' }}>
+                <tr className="bg-slate-100 font-bold text-slate-950" style={{ backgroundColor: '#f1f5f9' }}>
                   <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '15%', fontWeight: 'bold' }}>
                     তারিখ
                   </th>
@@ -367,22 +367,22 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                     <tr
                       key={dRow.date}
                       className="font-medium text-slate-950"
-                      style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '1px solid #000000' }}
+                      style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
                     >
                       <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                         {formatSimpleDate(dRow.date, useBengaliDigits)}
                       </td>
                       <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {dRow.dayIncome > 0 ? toBengaliNumber(dRow.dayIncome, useBengaliDigits) : ''}
+                        {dRow.dayIncome > 0 ? toBengaliNumber(dRow.dayIncome, useBengaliDigits) : '\u00A0'}
                       </td>
                       <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {dRow.dayExpense > 0 ? toBengaliNumber(dRow.dayExpense, useBengaliDigits) : ''}
+                        {dRow.dayExpense > 0 ? toBengaliNumber(dRow.dayExpense, useBengaliDigits) : '\u00A0'}
                       </td>
                       <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                         {toBengaliNumber(dRow.runningCash, useBengaliDigits)}
                       </td>
                       <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
-                        {dRow.mainCategoriesText}
+                        {dRow.mainCategoriesText || '-'}
                       </td>
                       <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
                         -
@@ -397,22 +397,22 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                       <tr
                         key={tx.id || idx}
                         className="font-medium text-slate-950"
-                        style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '1px solid #000000' }}
+                        style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
                       >
                         <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                           {formatSimpleDate(tx.date, useBengaliDigits)}
                         </td>
                         <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                          {isInc ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
+                          {isInc ? toBengaliNumber(tx.amount, useBengaliDigits) : '\u00A0'}
                         </td>
                         <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                          {!isInc && tx.amount > 0 ? toBengaliNumber(tx.amount, useBengaliDigits) : ''}
+                          {!isInc && tx.amount > 0 ? toBengaliNumber(tx.amount, useBengaliDigits) : '\u00A0'}
                         </td>
                         <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
                           {toBengaliNumber(tx.calculatedCash, useBengaliDigits)}
                         </td>
                         <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
-                          {tx.category}
+                          {!isInc ? (tx.category || '-') : '-'}
                         </td>
                         <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
                           {tx.remarks || tx.customerName || '-'}
@@ -423,7 +423,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                 )}
 
                 {/* Total Footer Row */}
-                <tr className="font-bold text-xs sm:text-sm bg-slate-100 text-slate-950" style={{ backgroundColor: '#f1f5f9', pageBreakInside: 'avoid', breakInside: 'avoid', borderTop: '2px solid #000000' }}>
+                <tr className="font-bold text-xs sm:text-sm bg-slate-100 text-slate-950" style={{ backgroundColor: '#f1f5f9', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <td style={{ border: '1px solid #000000', padding: '6px 4px', textAlign: 'center', fontWeight: 'black' }}>
                     সর্বমোট (TOTAL)
                   </td>
@@ -439,7 +439,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                   <td style={{ border: '1px solid #000000', padding: '6px 6px', textAlign: 'left', fontWeight: 'black' }}>
                     অবশিষ্ট ক্যাশ জমা
                   </td>
-                  <td style={{ border: '1px solid #000000', padding: '6px 4px' }}></td>
+                  <td style={{ border: '1px solid #000000', padding: '6px 4px' }}>{'\u00A0'}</td>
                 </tr>
               </tbody>
             </table>
@@ -447,7 +447,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
         </div>
 
         {/* Signature Footer - Pushed cleanly to bottom of A4 page */}
-        <div className="mt-12 print:mt-8 pt-8 print:pt-4 flex items-center justify-between font-bold text-xs sm:text-sm text-slate-950" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <div className="mt-12 print:mt-12 pt-8 print:pt-6 flex items-center justify-between font-bold text-xs sm:text-sm text-slate-950 pb-2" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <div className="text-center">
             <div style={{ width: '200px', borderTop: '2px solid #000000', margin: '0 auto 8px auto' }}></div>
             <span>{shopInfo.managerName || 'দোকান পরিচালকের নাম'}</span>

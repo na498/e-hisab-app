@@ -195,11 +195,11 @@ export function exportOfficialMonthlyExcel(
         dayInc += Number(tx.amount || 0);
       } else {
         dayExp += Number(tx.amount || 0);
-      }
-      if (tx.description) {
-        descParts.push(tx.description);
-      } else if (tx.category) {
-        descParts.push(tx.category);
+        if (tx.description) {
+          descParts.push(tx.description);
+        } else if (tx.category) {
+          descParts.push(tx.category);
+        }
       }
     });
 
