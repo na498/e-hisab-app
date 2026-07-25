@@ -56,7 +56,6 @@ export async function loadTransactions(): Promise<Transaction[]> {
 
     if (data) {
       const formattedData = calculateRunningBalances(data);
-      // Supabase-এর আসল ডাটা দিয়ে LocalStorage পুরোপুরি ওভাররাইট করা হচ্ছে
       localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(formattedData));
       return formattedData;
     }
@@ -75,10 +74,7 @@ export async function saveTransactions(transactions: Transaction[]): Promise<voi
     const withBalances = calculateRunningBalances(transactions || []);
     localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(withBalances));
 
-    if (withBalances.length === 0) {
-      // যদি সবগুলো ডিলিট হয়ে অ্যাপ খালি হয়ে যায়, সুপাবেস থেকেও ক্লিয়ার করবে
-      return;
-    }
+    if (withBalances.length === 0) return;
 
     const cleanTransactions = withBalances.map(({ cashBalance, ...rest }) => rest);
 
@@ -96,16 +92,13 @@ export async function saveTransactions(transactions: Transaction[]): Promise<voi
   }
 }
 
-// 🟢 Supabase এবং LocalStorage উভয় স্থান থেকে ট্রানজ্যাকশন সম্পূর্ণ ডিলিট
 export async function deleteTransactionFromSupabase(id: string): Promise<void> {
   try {
-    // ১. Supabase থেকে ডিলিট
     const { error } = await supabase.from('transactions').delete().eq('id', id);
     if (error) {
       console.error("Error deleting transaction from Supabase:", error.message);
     }
 
-    // ২. LocalStorage থেকে ডিলিট
     const local = localStorage.getItem(KEYS.TRANSACTIONS);
     if (local) {
       const list: Transaction[] = JSON.parse(local);
@@ -161,7 +154,6 @@ export async function saveCustomerDues(dues: CustomerDue[]): Promise<void> {
   }
 }
 
-// 🟢 Supabase এবং LocalStorage থেকে কাস্টমার ডিলিট করার ফাংশন
 export async function deleteCustomerFromSupabase(id: string): Promise<void> {
   try {
     const { error } = await supabase.from('customer_dues').delete().eq('id', id);
@@ -195,7 +187,11 @@ export async function loadShopInfo(): Promise<ShopInfo> {
     if (error) console.error('Error loading shop info from Supabase:', error.message);
 
     if (data) {
-      const mergedShop = { ...INITIAL_SHOP_INFO, ...data };
+      const mergedShop: ShopInfo = {
+        ...INITIAL_SHOP_INFO,
+        ...data,
+        branchName: data.branchName ?? data.branch_name ?? INITIAL_SHOP_INFO.branchName ?? '',
+      };
       localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(mergedShop));
       return mergedShop;
     }
@@ -213,7 +209,16 @@ export async function saveShopInfo(info: ShopInfo): Promise<void> {
   try {
     localStorage.setItem(KEYS.SHOP_INFO, JSON.stringify(info));
 
-    const shopData = { id: 'main_shop', ...info };
+    const shopBranch = (info as any).branchName || (info as any).branch_name || '';
+
+    // camelCase এবং snake_case দুটো ফরম্যাটেই ম্যাপিং করা হলো
+    const shopData = {
+      id: 'main_shop',
+      ...info,
+      branchName: shopBranch,
+      branch_name: shopBranch,
+    };
+
     const { error } = await supabase
       .from('shop_info')
       .upsert(shopData, { onConflict: 'id' });
@@ -228,7 +233,7 @@ export async function saveShopInfo(info: ShopInfo): Promise<void> {
   }
 }
 
-// 🟢 সেটিংস লোড করার সঠিক পার্সিং
+// 🟢 সেটিংস লোড করার ফিক্সড ফাংশন (DB standard Snake Case mapping)
 export async function loadSettings(): Promise<UserSettings> {
   try {
     const { data, error } = await supabase
@@ -242,12 +247,19 @@ export async function loadSettings(): Promise<UserSettings> {
     if (data) {
       const parsedSettings: UserSettings = {
         ...INITIAL_SETTINGS,
-        ...data,
-        quickPresets: data.quickPresets || INITIAL_SETTINGS.quickPresets || [],
-        customCategories: data.customCategories || INITIAL_SETTINGS.customCategories || [],
-        customIncomeCategories: data.customIncomeCategories || INITIAL_SETTINGS.customIncomeCategories || [],
-        customExpenseCategories: data.customExpenseCategories || INITIAL_SETTINGS.customExpenseCategories || [],
-        hiddenCategories: data.hiddenCategories || INITIAL_SETTINGS.hiddenCategories || [],
+        pin: data.pin ?? INITIAL_SETTINGS.pin,
+        pinEnabled: data.pinEnabled ?? data.pin_enabled ?? INITIAL_SETTINGS.pinEnabled,
+        authEnabled: data.authEnabled ?? data.auth_enabled ?? INITIAL_SETTINGS.authEnabled,
+        adminPhone: data.adminPhone ?? data.admin_phone ?? INITIAL_SETTINGS.adminPhone,
+        adminPassword: data.adminPassword ?? data.admin_password ?? INITIAL_SETTINGS.adminPassword,
+        useBengaliDigits: data.useBengaliDigits ?? data.use_bengali_digits ?? INITIAL_SETTINGS.useBengaliDigits,
+        monthStartDay: data.monthStartDay ?? data.month_start_day ?? INITIAL_SETTINGS.monthStartDay,
+        
+        quickPresets: data.quickPresets || data.quick_presets || INITIAL_SETTINGS.quickPresets || [],
+        customCategories: data.customCategories || data.custom_categories || INITIAL_SETTINGS.customCategories || [],
+        customIncomeCategories: data.customIncomeCategories || data.custom_income_categories || INITIAL_SETTINGS.customIncomeCategories || [],
+        customExpenseCategories: data.customExpenseCategories || data.custom_expense_categories || INITIAL_SETTINGS.customExpenseCategories || [],
+        hiddenCategories: data.hiddenCategories || data.hidden_categories || INITIAL_SETTINGS.hiddenCategories || [],
       };
 
       localStorage.setItem(KEYS.SETTINGS, JSON.stringify(parsedSettings));
@@ -263,7 +275,7 @@ export async function loadSettings(): Promise<UserSettings> {
   }
 }
 
-// 🟢 সেটিংস সেভ করার কাজ
+// 🟢 সেটিংস সেভ করার ফিক্সড ফাংশন (Snake Case & Camel Case দুটো কলাম সাপোর্ট সহ)
 export async function saveSettings(settings: UserSettings): Promise<void> {
   try {
     const cleanSettings: UserSettings = {
@@ -278,7 +290,24 @@ export async function saveSettings(settings: UserSettings): Promise<void> {
 
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(cleanSettings));
 
-    const settingsData = { id: 'main_settings', ...cleanSettings };
+    // Supabase DB এর জন্য ডাটা ম্যাপ (DB Table Safe Format)
+    const settingsData = {
+      id: 'main_settings',
+      ...cleanSettings,
+      // Snake_case Fallback mapping
+      pin_enabled: cleanSettings.pinEnabled,
+      auth_enabled: cleanSettings.authEnabled,
+      admin_phone: cleanSettings.adminPhone,
+      admin_password: cleanSettings.adminPassword,
+      use_bengali_digits: cleanSettings.useBengaliDigits,
+      month_start_day: cleanSettings.monthStartDay,
+      quick_presets: cleanSettings.quickPresets,
+      custom_categories: cleanSettings.customCategories,
+      custom_income_categories: cleanSettings.customIncomeCategories,
+      custom_expense_categories: cleanSettings.customExpenseCategories,
+      hidden_categories: cleanSettings.hiddenCategories,
+    };
+
     const { error } = await supabase
       .from('settings')
       .upsert(settingsData, { onConflict: 'id' });
@@ -318,5 +347,4 @@ export function resetAllToDefault() {
   localStorage.clear();
 }
 
-// 🟢 App.tsx এর জন্য Supabase এক্সপোর্ট
 export { supabase };
