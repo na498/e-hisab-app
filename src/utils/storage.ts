@@ -2,10 +2,8 @@ import { Transaction, CustomerDue, ShopInfo, UserSettings, AppNotification } fro
 import {
   INITIAL_SHOP_INFO,
   INITIAL_SETTINGS,
-  INITIAL_TRANSACTIONS,
-  INITIAL_CUSTOMER_DUES,
-  INITIAL_NOTIFICATIONS,
 } from '../data/sampleData';
+import { supabase } from './supabase'; // Supabase Client কানেক্ট করা হলো
 
 const KEYS = {
   TRANSACTIONS: 'e_hisab_transactions_v1',
@@ -16,6 +14,7 @@ const KEYS = {
   LAST_SYNC: 'e_hisab_last_sync_v1',
 };
 
+// রানিং ব্যালেন্স ক্যালকুলেশন
 export function calculateRunningBalances(transactions: Transaction[]): Transaction[] {
   if (!Array.isArray(transactions)) return [];
   const valid = transactions.filter((t) => t && typeof t === 'object');
@@ -43,55 +42,99 @@ export function calculateRunningBalances(transactions: Transaction[]): Transacti
   });
 }
 
-export function loadTransactions(): Transaction[] {
+/* ==========================================
+   ১. লেনদেন (TRANSACTIONS)
+========================================== */
+export async function loadTransactions(): Promise<Transaction[]> {
   try {
-    const raw = localStorage.getItem(KEYS.TRANSACTIONS);
-    if (!raw) {
-      saveTransactions([]);
-      return [];
+    // সরাসরি Supabase থেকে ডেটা আনা হচ্ছে
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('date', { ascending: true });
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      const formattedData = calculateRunningBalances(data);
+      // ব্যাকআপের জন্য লোকাল স্টোরেজেও রেখে দেওয়া
+      localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(formattedData));
+      return formattedData;
     }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? calculateRunningBalances(parsed) : [];
+
+    // Supabase ফাঁকা থাকলে লোকাল থেকে ট্রাই করবে
+    const local = localStorage.getItem(KEYS.TRANSACTIONS);
+    return local ? JSON.parse(local) : [];
   } catch (err) {
-    console.error('Error loading transactions', err);
-    return [];
+    console.error("Error loading transactions from Supabase, fetching local fallback:", err);
+    const local = localStorage.getItem(KEYS.TRANSACTIONS);
+    return local ? JSON.parse(local) : [];
   }
 }
 
-export function saveTransactions(transactions: Transaction[]) {
+export async function saveTransactions(transactions: Transaction[]): Promise<void> {
   try {
     const withBalances = calculateRunningBalances(transactions || []);
+
+    // লোকাল স্টোরেজে দ্রুত আপডেট
     localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(withBalances));
-    localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
-  } catch (err) {
-    console.error('Error saving transactions', err);
-  }
-}
 
-export function loadCustomerDues(): CustomerDue[] {
-  try {
-    const raw = localStorage.getItem(KEYS.CUSTOMER_DUES);
-    if (!raw) {
-      saveCustomerDues([]);
-      return [];
+    // Supabase ডাটাবেজে সেভ/আপডেট
+    const { error } = await supabase
+      .from('transactions')
+      .upsert(withBalances, { onConflict: 'id' });
+
+    if (error) {
+      console.error("Supabase Save Error:", error.message);
+    } else {
+      localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
     }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
   } catch (err) {
-    console.error('Error loading customer dues', err);
-    return [];
+    console.error("Error saving transactions:", err);
   }
 }
 
-export function saveCustomerDues(dues: CustomerDue[]) {
+/* ==========================================
+   ২. কাস্টমার বাকি (CUSTOMER DUES)
+========================================== */
+export async function loadCustomerDues(): Promise<CustomerDue[]> {
+  try {
+    const { data, error } = await supabase.from('customer_dues').select('*');
+    if (error) throw error;
+
+    if (data) {
+      localStorage.setItem(KEYS.CUSTOMER_DUES, JSON.stringify(data));
+      return data;
+    }
+
+    const raw = localStorage.getItem(KEYS.CUSTOMER_DUES);
+    return raw ? JSON.parse(raw) : [];
+  } catch (err) {
+    console.error('Error loading customer dues:', err);
+    const raw = localStorage.getItem(KEYS.CUSTOMER_DUES);
+    return raw ? JSON.parse(raw) : [];
+  }
+}
+
+export async function saveCustomerDues(dues: CustomerDue[]): Promise<void> {
   try {
     localStorage.setItem(KEYS.CUSTOMER_DUES, JSON.stringify(dues || []));
-    localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
+    
+    const { error } = await supabase
+      .from('customer_dues')
+      .upsert(dues || [], { onConflict: 'id' });
+
+    if (!error) {
+      localStorage.setItem(KEYS.LAST_SYNC, new Date().toISOString());
+    }
   } catch (err) {
-    console.error('Error saving customer dues', err);
+    console.error('Error saving customer dues:', err);
   }
 }
 
+/* ==========================================
+   ৩. শপ ও সেটিংস (SHOP INFO & SETTINGS)
+========================================== */
 export function loadShopInfo(): ShopInfo {
   try {
     const raw = localStorage.getItem(KEYS.SHOP_INFO);
@@ -139,12 +182,7 @@ export function saveSettings(settings: UserSettings) {
 export function loadNotifications(): AppNotification[] {
   try {
     const raw = localStorage.getItem(KEYS.NOTIFICATIONS);
-    if (!raw) {
-      saveNotifications([]);
-      return [];
-    }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return raw ? JSON.parse(raw) : [];
   } catch (err) {
     return [];
   }
@@ -163,11 +201,5 @@ export function getLastSyncTime(): string {
 }
 
 export function resetAllToDefault() {
-  localStorage.removeItem(KEYS.TRANSACTIONS);
-  localStorage.removeItem(KEYS.CUSTOMER_DUES);
-  localStorage.removeItem(KEYS.NOTIFICATIONS);
-  localStorage.removeItem(KEYS.LAST_SYNC);
-  localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify([]));
-  localStorage.setItem(KEYS.CUSTOMER_DUES, JSON.stringify([]));
-  localStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify([]));
+  localStorage.clear();
 }

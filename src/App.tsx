@@ -11,7 +11,6 @@ import {
   loadNotifications,
   saveNotifications,
   getLastSyncTime,
-  resetAllToDefault,
 } from './utils/storage';
 import {
   Transaction,
@@ -38,8 +37,8 @@ import { NotificationDrawer } from './components/NotificationDrawer';
 import { formatShortMonthDay } from './utils/formatters';
 
 export default function App() {
-  const [transactions, setTransactions] = useState<Transaction[]>(() => loadTransactions());
-  const [customerDues, setCustomerDues] = useState<CustomerDue[]>(() => loadCustomerDues());
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [customerDues, setCustomerDues] = useState<CustomerDue[]>([]);
   const [shopInfo, setShopInfo] = useState<ShopInfo>(() => loadShopInfo());
   const [settings, setSettings] = useState<UserSettings>(() => loadSettings());
   const [notifications, setNotifications] = useState<AppNotification[]>(() => loadNotifications());
@@ -49,8 +48,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isNewTxModalOpen, setIsNewTxModalOpen] = useState<boolean>(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
-  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] =
-    useState<boolean>(false);
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState<boolean>(false);
   const [isLocked, setIsLocked] = useState<boolean>(Boolean(settings?.pinEnabled));
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -67,70 +65,32 @@ export default function App() {
     sessionStorage.removeItem('e_hisab_admin_authenticated');
   };
 
-  // Load Initial Data from REST API (if backend server is active) or local storage
+  // Load Initial Data from Supabase / Storage
   useEffect(() => {
-    const fetchApiData = async () => {
+    const fetchInitialData = async () => {
       try {
-        const [txRes, duesRes, shopRes, setRes] = await Promise.all([
-          fetch('/api/transactions').catch(() => null),
-          fetch('/api/dues').catch(() => null),
-          fetch('/api/shop-info').catch(() => null),
-          fetch('/api/settings').catch(() => null),
-        ]);
+        const loadedTx = await loadTransactions();
+        setTransactions(loadedTx);
 
-        if (txRes && txRes.ok) {
-          const apiTx = await txRes.json().catch(() => null);
-          if (Array.isArray(apiTx) && apiTx.length > 0) {
-            setTransactions(apiTx);
-            saveTransactions(apiTx);
-          }
-        }
+        const loadedDues = await loadCustomerDues();
+        setCustomerDues(loadedDues);
 
-        if (duesRes && duesRes.ok) {
-          const apiDues = await duesRes.json().catch(() => null);
-          if (Array.isArray(apiDues) && apiDues.length > 0) {
-            setCustomerDues(apiDues);
-            saveCustomerDues(apiDues);
-          }
-        }
-
-        if (shopRes && shopRes.ok) {
-          const apiShop = await shopRes.json().catch(() => null);
-          if (apiShop && apiShop.shopName) {
-            const localShop = loadShopInfo();
-            const mergedShop = {
-              ...apiShop,
-              ownerName: localShop.ownerName || apiShop.ownerName || '',
-              managerName: localShop.managerName || apiShop.managerName || '',
-            };
-            setShopInfo(mergedShop);
-            saveShopInfo(mergedShop);
-          }
-        }
-
-        if (setRes && setRes.ok) {
-          const apiSet = await setRes.json().catch(() => null);
-          if (apiSet && typeof apiSet.useBengaliDigits === 'boolean') {
-            const localSet = loadSettings();
-            const mergedSet = { ...localSet, ...apiSet };
-            setSettings(mergedSet);
-            saveSettings(mergedSet);
-          }
-        }
+        setShopInfo(loadShopInfo());
+        setSettings(loadSettings());
+        setNotifications(loadNotifications());
       } catch (err) {
-        console.warn('API connection offline or falling back to localStorage:', err);
+        console.error('Error fetching initial data:', err);
       }
     };
 
-    fetchApiData();
-    setNotifications(loadNotifications());
+    fetchInitialData();
     setIsLocked(Boolean(settings?.pinEnabled));
   }, []);
 
   // Window Online/Offline listener
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => setIsOffline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -141,53 +101,27 @@ export default function App() {
     };
   }, []);
 
-  // Save Helpers (updates local storage + background REST sync)
-  const updateTransactions = useCallback((newTxList: Transaction[]) => {
+  // Save Helpers (Updates local state + Supabase async save)
+  const updateTransactions = useCallback(async (newTxList: Transaction[]) => {
     setTransactions(newTxList);
-    saveTransactions(newTxList);
+    await saveTransactions(newTxList);
     setLastSyncTime(new Date().toISOString());
-
-    // Sync API
-    fetch('/api/transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newTxList),
-    }).catch((e) => console.warn('Transaction API sync error:', e));
   }, []);
 
-  const updateCustomerDues = useCallback((newDues: CustomerDue[]) => {
-    setCustomerDues(newDues);
-    saveCustomerDues(newDues);
+  const updateCustomerDues = useCallback(async (newDuesList: CustomerDue[]) => {
+    setCustomerDues(newDuesList);
+    await saveCustomerDues(newDuesList);
     setLastSyncTime(new Date().toISOString());
-
-    // Sync API
-    fetch('/api/dues', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newDues),
-    }).catch((e) => console.warn('Dues API sync error:', e));
   }, []);
 
   const updateShopInfoState = useCallback((info: ShopInfo) => {
     setShopInfo(info);
     saveShopInfo(info);
-
-    fetch('/api/shop-info', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(info),
-    }).catch((e) => console.warn('ShopInfo API sync error:', e));
   }, []);
 
   const updateSettingsState = useCallback((set: UserSettings) => {
     setSettings(set);
     saveSettings(set);
-
-    fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(set),
-    }).catch((e) => console.warn('Settings API sync error:', e));
   }, []);
 
   const updateNotificationsState = useCallback((notifs: AppNotification[]) => {
@@ -200,7 +134,6 @@ export default function App() {
     txData: Omit<Transaction, 'id' | 'createdAt'>
   ) => {
     if (editingTx) {
-      // Edit
       const updated = transactions.map((t) =>
         t.id === editingTx.id
           ? {
@@ -212,7 +145,6 @@ export default function App() {
       updateTransactions(updated);
       setEditingTx(null);
     } else {
-      // New
       const now = new Date();
       const timeStr = now.toLocaleTimeString('en-US', {
         hour: '2-digit',
@@ -284,7 +216,7 @@ export default function App() {
                 date: todayStr,
                 amount: customerData.totalDue,
                 type: 'due',
-                description: 'প্রাথমিক বকেয়া বাকি',
+                description: 'প্রাথমিক বকেয়া বাকি',
               },
             ]
           : [],
@@ -337,7 +269,6 @@ export default function App() {
 
     updateCustomerDues(updatedDues);
 
-    // If payment collected, automatically log income into cash ledger under "বাকি আদায়"
     if (type === 'payment') {
       const targetCustomer = customerDues.find((c) => c.id === customerId);
       const customerName = targetCustomer ? targetCustomer.name : '';
@@ -350,8 +281,8 @@ export default function App() {
         displayDate: displayDateStr,
         type: 'income',
         amount,
-        category: 'বাকি আদায়',
-        description: `বাকি আদায়: ${description}`,
+        category: 'বাকি আদায়',
+        description: `বাকি আদায়: ${description}`,
         customerName,
         customerPhone,
         createdAt: Date.now(),
@@ -383,12 +314,12 @@ export default function App() {
       : 'কোনো তারিখ ছিল না';
     const newDateLabel = newPromiseDate
       ? formatShortMonthDay(newPromiseDate, settings.useBengaliDigits)
-      : 'তারিখ বাদ দেওয়া হয়েছে';
+      : 'তারিখ বাদ দেওয়া হয়েছে';
 
     const reasonSuffix = reason && reason.trim() ? ` (${reason.trim()})` : '';
     const historyDesc = newPromiseDate
       ? `পরিশোধের তারিখ পরিবর্তন: ${oldDateLabel} ➔ ${newDateLabel}${reasonSuffix}`
-      : `পরিশোধের তারিখ বাতিল করা হয়েছে: (${oldDateLabel})${reasonSuffix}`;
+      : `পরিশোধের তারিখ বাতিল করা হয়েছে: (${oldDateLabel})${reasonSuffix}`;
 
     const newHistoryItem: DueHistory = {
       id: `h_${Date.now()}`,
@@ -411,7 +342,7 @@ export default function App() {
     updateCustomerDues(updated);
   };
 
-  // Check customer promise dates and generate/clean up notifications for due/overdue payments
+  // Notifications logic
   useEffect(() => {
     if (!customerDues || customerDues.length === 0) return;
 
@@ -420,7 +351,6 @@ export default function App() {
     setNotifications((prevNotifs) => {
       const currentList = Array.isArray(prevNotifs) ? prevNotifs : [];
 
-      // Purge outdated due_alert notifications if customer is fully paid, or promiseDate changed/moved to future
       const validNotifs = currentList.filter((n) => {
         if (!n || n.type !== 'due_alert') return true;
 
@@ -432,17 +362,15 @@ export default function App() {
           );
         });
 
-        if (!cust) return false; // customer deleted
+        if (!cust) return false;
         const remainingDue = (cust.totalDue || 0) - (cust.totalPaid || 0);
-        if (remainingDue <= 0) return false; // due paid off
-        if (!cust.promiseDate) return false; // no promise date
-        if (cust.promiseDate > todayStr) return false; // rescheduled to future date!
+        if (remainingDue <= 0) return false;
+        if (!cust.promiseDate) return false;
+        if (cust.promiseDate > todayStr) return false;
 
-        // If notification says due today, but promiseDate is no longer today
         if (n.id && n.id.startsWith('due_today_') && cust.promiseDate !== todayStr) {
           return false;
         }
-        // If notification says overdue, but promiseDate is no longer overdue
         if (n.id && n.id.startsWith('due_overdue_') && cust.promiseDate >= todayStr) {
           return false;
         }
@@ -464,7 +392,7 @@ export default function App() {
               newNotifs.push({
                 id: notifId,
                 title: `🔔 আজ পরিশোধের তারিখ: ${customer.name}`,
-                message: `প্রিয় গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা পরিশোধ করার কথা রয়েছে।`,
+                message: `প্রিয় গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা পরিশোধ করার কথা রয়েছে।`,
                 type: 'due_alert',
                 read: false,
                 date: todayStr,
@@ -476,7 +404,7 @@ export default function App() {
               newNotifs.push({
                 id: notifId,
                 title: `⚠️ পরিশোধের তারিখ অতিক্রান্ত: ${customer.name}`,
-                message: `গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা জমার তারিখ (${customer.promiseDate}) পার হয়েছে। তাগাদা দেওয়ার পরামর্শ দেওয়া হচ্ছে।`,
+                message: `গ্রাহক ${customer.name}-এর ৳ ${remainingDue} টাকা জমার তারিখ (${customer.promiseDate}) পার হয়েছে। তাগাদা দেওয়ার পরামর্শ দেওয়া হচ্ছে।`,
                 type: 'due_alert',
                 read: false,
                 date: todayStr,
@@ -538,7 +466,6 @@ export default function App() {
     updateSettingsState(data.settings);
   };
 
-  // Lock unlock handler
   const handleUnlock = (pin: string): boolean => {
     if (pin === settings.pin) {
       setIsLocked(false);
@@ -547,7 +474,6 @@ export default function App() {
     return false;
   };
 
-  // Notifications
   const handleMarkNotificationRead = (id: string) => {
     const updated = notifications.map((n) =>
       n.id === id ? { ...n, read: true } : n
@@ -559,19 +485,16 @@ export default function App() {
     updateNotificationsState([]);
   };
 
-  // Calculate due count
   const activeDueCount = (customerDues || []).filter(
     (c) => c && ((c.totalDue || 0) - (c.totalPaid || 0) > 0)
   ).length;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans selection:bg-emerald-200">
-      {/* Security Pin Lock */}
       {isLocked && (
         <PinLockModal settings={settings} onUnlock={handleUnlock} />
       )}
 
-      {/* Login Auth Modal */}
       {(settings.authEnabled ?? true) && !isLoggedIn && (
         <LoginModal
           isOpen={true}
@@ -582,7 +505,6 @@ export default function App() {
         />
       )}
 
-      {/* Main App Bar */}
       <Header
         shopInfo={shopInfo}
         settings={settings}
@@ -599,9 +521,7 @@ export default function App() {
         activeTab={activeTab}
       />
 
-      {/* Main Container with Left Sidebar Navigation */}
       <div className="flex flex-col md:flex-row flex-1 max-w-[1400px] w-full mx-auto">
-        {/* Navigation Left Sidebar */}
         <NavigationTabs
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -610,7 +530,6 @@ export default function App() {
           authEnabled={settings.authEnabled ?? true}
         />
 
-        {/* Primary Page Content */}
         <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 min-w-0">
           {activeTab === 'dashboard' && (
             <DashboardOverview
@@ -695,7 +614,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Modals & Drawers */}
       <TransactionFormModal
         isOpen={isNewTxModalOpen}
         onClose={() => {
@@ -719,7 +637,6 @@ export default function App() {
         onClearAll={handleClearAllNotifications}
       />
 
-      {/* Print Footer Styles */}
       <style>{`
         @page {
           size: A4 portrait;
