@@ -112,56 +112,68 @@ export default function App() {
     }
   }, []);
 
-  // 🔴 Realtime Listener & Initial Load
-  useEffect(() => {
-    fetchAllData();
+// 🟢 ১. fetchAllData ফাংশনটি ঠিক এরকম হতে হবে
+const fetchAllData = useCallback(async () => {
+  try {
+    // একসাথে সব ডাটা ফ্রেচ করা
+    const [txData, duesData, shopData, settingsData] = await Promise.all([
+      loadTransactions(),
+      loadCustomerDues(),
+      loadShopInfo(),
+      loadSettings(),
+    ]);
 
-    // ⚡ Supabase Realtime Subscription
-    const channel = supabase
-      .channel('e-hisab-live-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public' },
-        () => {
-          fetchAllData();
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Realtime sync connected!');
-        }
-      });
+    // রিঅ্যাক্ট স্টেট আপডেট নিশ্চিত করা
+    setTransactions(txData);
+    setCustomerDues(duesData);
+    setShopInfo(shopData);
+    setSettings({ ...settingsData }); // New object reference to trigger re-render
+  } catch (error) {
+    console.error("Error fetching all data:", error);
+  }
+}, []);
 
-    // 📱 মোবাইল ব্যাকগ্রাউন্ড থেকে আবার সামনে আসলে অটো সিঙ্ক
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchAllData();
+// 🟢 ২. Realtime & Auto-Reconnect useEffect
+useEffect(() => {
+  // অ্যাপ লোড হলে প্রথম ফ্রেচ
+  fetchAllData();
+
+  // ⚡ Supabase Realtime Subscription
+  const channel = supabase
+    .channel('e-hisab-live-sync')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public' },
+      (payload) => {
+        console.log('Realtime change detected:', payload);
+        fetchAllData(); // যেকোনো টেবিলে (settings সহ) চেঞ্জ হলে সাথে সাথে রি-লোড হবে
       }
-    };
-    window.addEventListener('visibilitychange', handleVisibilityChange);
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('Realtime sync connected!');
+      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        // কানেকশন ড্রপ করলে অটো রিকানেক্ট
+        supabase.removeChannel(channel);
+      }
+    });
 
-    return () => {
-      supabase.removeChannel(channel);
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [fetchAllData]);
-
-  // Window Online/Offline listener
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
+  // 📱 মোবাইল ব্যাকগ্রাউন্ড থেকে আবার সামনে আসলে বা স্ক্রিন অন হলে ফ্রেচ
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
       fetchAllData();
-    };
-    const handleOffline = () => setIsOnline(false);
+    }
+  };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+  window.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('focus', handleVisibilityChange); // বাড়তি ফোকাস লিসেনার
 
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [fetchAllData]);
+  return () => {
+    supabase.removeChannel(channel);
+    window.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('focus', handleVisibilityChange);
+  };
+}, [fetchAllData]);
 
   // Save Helpers
   const updateTransactions = useCallback(async (newTxList: Transaction[]) => {
