@@ -74,7 +74,7 @@ export default function App() {
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   
-  // 🟢 সিকিউরড লগইন স্টেট ইনিশিয়ালাইজেশন
+  // 🟢 সিকিউরড লগইন স্টেট ইনিশিয়ালাইজেশন
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return sessionStorage.getItem('e_hisab_admin_authenticated') === 'true';
   });
@@ -92,7 +92,7 @@ export default function App() {
     window.location.href = window.location.pathname; // সফট রিলোডের বদলে হার্ড রিডাইরেক্ট
   };
 
-// 🟢 ডাটা লোড করার কেন্দ্রীয় ফাংশন
+  // 🟢 ডাটা লোড করার কেন্দ্রীয় ফাংশন
   const fetchAllData = useCallback(async () => {
     // যদি ইউজার লগইন করা না থাকে, তবে ডাটা ফেচ বা লোড হবে না
     if (sessionStorage.getItem('e_hisab_admin_authenticated') !== 'true') return;
@@ -138,6 +138,8 @@ export default function App() {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('Realtime sync connected!');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          supabase.removeChannel(channel);
         }
       });
 
@@ -357,7 +359,7 @@ export default function App() {
         displayDate: displayDateStr,
         type: 'income',
         amount,
-        category: 'বাকি আদায়',
+        category: 'বাকি আদায়',
         description: `বাকি আদায়: ${description}`,
         customerName,
         customerPhone,
@@ -558,6 +560,16 @@ export default function App() {
     updateNotificationsState(updated);
   };
 
+  const handleMarkAllNotificationsRead = () => {
+    const updated = notifications.map((n) => ({ ...n, read: true }));
+    updateNotificationsState(updated);
+  };
+
+  const handleDeleteNotification = (id: string) => {
+    const updated = notifications.filter((n) => n.id !== id);
+    updateNotificationsState(updated);
+  };
+
   const handleClearAllNotifications = () => {
     updateNotificationsState([]);
   };
@@ -717,7 +729,10 @@ export default function App() {
             onClose={() => setIsNotificationDrawerOpen(false)}
             notifications={notifications}
             onMarkAsRead={handleMarkNotificationRead}
+            onMarkAllRead={handleMarkAllNotificationsRead}
             onClearAll={handleClearAllNotifications}
+            onDeleteNotification={handleDeleteNotification}
+            onNavigateTab={(tab) => setActiveTab(tab)}
           />
         </>
       )}

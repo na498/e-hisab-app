@@ -47,6 +47,25 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
     return true;
   });
 
+  // 🎯 নোটিফিকেশনে ক্লিক করার পর নির্দিষ্ট ট্যাবে নিয়ে যাওয়ার ফাংশন
+  const handleNotificationClick = (n: AppNotification) => {
+    if (!n.read) {
+      onMarkAsRead(n.id);
+    }
+
+    if (onNavigateTab) {
+      if (n.type === 'due_alert') {
+        onNavigateTab('dues');
+      } else if (n.type === 'cash_alert') {
+        onNavigateTab('ledger');
+      } else {
+        // ডিফল্টভাবে লেজার বা ট্যাবে পাঠাতে পারেন
+        onNavigateTab('ledger');
+      }
+      onClose(); // নেভিগেট করার পর ড্রয়ার বন্ধ করে দেবে
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/60 backdrop-blur-xs animate-fade-in">
       <div className="bg-white max-w-md w-full h-full shadow-2xl flex flex-col border-l border-slate-200">
@@ -66,7 +85,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
                 নোটিফিকেশন সেন্টার
               </h3>
               <p className="text-xs text-emerald-200">
-                বাকি তাগাদা ও লেনদেনের প্রয়োজনীয় সসংবাদ
+                বাকি তাগাদা ও লেনদেনের প্রয়োজনীয় বার্তা
               </p>
             </div>
           </div>
@@ -137,7 +156,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
               <p className="text-xs text-slate-400 mt-1">
                 {filter === 'unread'
                   ? 'আপনার কোনো অপঠিত নোটিফিকেশন নেই।'
-                  : 'নতুন কোনো তাগাদা বা বার্তা পাওয়া যায়নি।'}
+                  : 'নতুন কোনো তাগাদা বা বার্তা পাওয়া যায়নি।'}
               </p>
             </div>
           ) : (
@@ -148,14 +167,15 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
               return (
                 <div
                   key={n.id}
-                  className={`p-4 rounded-2xl border transition-all relative group ${
+                  onClick={() => handleNotificationClick(n)}
+                  className={`p-4 rounded-2xl border transition-all relative group cursor-pointer ${
                     !n.read
                       ? isDueAlert
-                        ? 'bg-rose-50/90 border-rose-200 shadow-sm'
+                        ? 'bg-rose-50/90 border-rose-200 shadow-sm hover:bg-rose-100/80'
                         : isCashAlert
-                        ? 'bg-amber-50/90 border-amber-200 shadow-sm'
-                        : 'bg-emerald-50/90 border-emerald-200 shadow-sm'
-                      : 'bg-white border-slate-200/80 shadow-2xs opacity-85 hover:opacity-100'
+                        ? 'bg-amber-50/90 border-amber-200 shadow-sm hover:bg-amber-100/80'
+                        : 'bg-emerald-50/90 border-emerald-200 shadow-sm hover:bg-emerald-100/80'
+                      : 'bg-white border-slate-200/80 shadow-2xs opacity-85 hover:opacity-100 hover:bg-slate-100/60'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -200,24 +220,26 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
 
                         <div className="flex items-center gap-2">
                           {isDueAlert && onNavigateTab && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onMarkAsRead(n.id);
-                                onNavigateTab('dues');
-                                onClose();
-                              }}
-                              className="font-bold text-rose-700 hover:text-rose-900 hover:underline flex items-center gap-1 cursor-pointer"
-                            >
+                            <span className="font-bold text-rose-700 group-hover:text-rose-900 flex items-center gap-1">
                               <span>বাকি খাতা</span>
                               <ArrowRight className="w-3 h-3" />
-                            </button>
+                            </span>
+                          )}
+
+                          {!isDueAlert && onNavigateTab && (
+                            <span className="font-bold text-emerald-700 group-hover:text-emerald-900 flex items-center gap-1">
+                              <span>ক্যাশ রেজিস্টার</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </span>
                           )}
 
                           {!n.read && (
                             <button
                               type="button"
-                              onClick={() => onMarkAsRead(n.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkAsRead(n.id);
+                              }}
                               className="font-bold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
                             >
                               পঠিত মার্ক
@@ -227,7 +249,10 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
                           {onDeleteNotification && (
                             <button
                               type="button"
-                              onClick={() => onDeleteNotification(n.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteNotification(n.id);
+                              }}
                               className="text-slate-400 hover:text-rose-600 p-0.5 rounded cursor-pointer transition-colors"
                               title="মুছুন"
                             >
@@ -266,4 +291,3 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
     </div>
   );
 };
-
