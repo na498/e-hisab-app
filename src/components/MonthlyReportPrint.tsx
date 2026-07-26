@@ -379,7 +379,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                         {dRow.dayExpense > 0 ? toBengaliNumber(dRow.dayExpense, useBengaliDigits) : '\u00A0'}
                       </td>
                       <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {toBengaliNumber(dRow.runningCash, useBengaliDigits)}
+                        {dRow.entryCount > 0 ? toBengaliNumber(dRow.runningCash, useBengaliDigits) : '\u00A0'}
                       </td>
                       <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
                         {dRow.mainCategoriesText || '-'}
