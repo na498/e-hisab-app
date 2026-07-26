@@ -6,6 +6,7 @@ import {
   toBengaliNumber,
   formatDateTime,
   formatSimpleDate,
+  formatMonthYear,
   exportOfficialMonthlyExcel,
 } from '../utils/formatters';
 import { printElement } from '../utils/printHelper';
@@ -62,8 +63,8 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
 
   // Month label helper
   const monthNameMap: Record<string, string> = {
-    '01': 'জানুয়ারি',
-    '02': 'ফেব্রুয়ারি',
+    '01': 'জানুয়ারি',
+    '02': 'ফেব্রুয়ারি',
     '03': 'মার্চ',
     '04': 'এপ্রিল',
     '05': 'মে',
@@ -77,7 +78,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
   };
 
   const getMonthLabel = (mStr: string) => {
-    if (mStr === 'all') return 'সম্পূর্ণ সময়ের সব মাস রেজিস্টার';
+    if (mStr === 'all') return 'সম্পূর্ণ সময়ের সব মাস রেজিস্টার';
     const [year, month] = mStr.split('-');
     const mName = monthNameMap[month] || month;
     const yStr = useBengaliDigits ? toBengaliNumber(year) : year;
@@ -90,10 +91,10 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
     if (selectedMonth !== 'all') {
       list = list.filter((tx) => tx.date && tx.date.startsWith(selectedMonth));
     }
-    return list.sort((a, b) => a.createdAt - b.createdAt);
+    return list.sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.createdAt - b.createdAt);
   }, [transactions, selectedMonth]);
 
-  // Daily Grouped Summary Calculation (Running Cash starts from 0 for the month)
+  // Daily Grouped Summary Calculation
   const dailySummaries = useMemo(() => {
     const dateMap: Record<string, Transaction[]> = {};
     monthTransactions.forEach((tx) => {
@@ -107,8 +108,9 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
     if (showAllDaysInMonth && selectedMonth && selectedMonth !== 'all' && /^\d{4}-\d{2}$/.test(selectedMonth)) {
       const [yearStr, monthStr] = selectedMonth.split('-');
       const year = parseInt(yearStr, 10);
-      const month = parseInt(monthStr, 10); // 1-12
-      const daysInMonth = new Date(year, month, 0).getDate(); // Total days in month
+      const month = parseInt(monthStr, 10);
+
+      const daysInMonth = new Date(year, month, 0).getDate();
 
       for (let d = 1; d <= daysInMonth; d++) {
         const dayFormatted = String(d).padStart(2, '0');
@@ -168,6 +170,14 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
       };
     });
   }, [monthTransactions]);
+
+  // Helper to check if a month header banner should be displayed
+  const shouldShowMonthHeader = (currentDate: string, prevDate?: string) => {
+    if (selectedMonth !== 'all' || !currentDate) return false;
+    const currentMonthKey = currentDate.slice(0, 7);
+    const prevMonthKey = prevDate ? prevDate.slice(0, 7) : null;
+    return currentMonthKey !== prevMonthKey;
+  };
 
   // Calculate totals
   const totalIncome = monthTransactions.reduce(
@@ -320,7 +330,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
           {/* Document Header */}
           <div className="text-center space-y-2 mb-6 border-b-2 border-slate-900 pb-5">
             <h1 className="text-2xl sm:text-3xl font-black font-serif text-slate-950 tracking-tight">
-              {shopInfo.shopName || 'ই-সেন্টার'} এর মাসিক আয় ব্যয়ের বিবরণী
+              {shopInfo.shopName || 'ই-সেন্টার'} এর মাসিক আয় ব্যয়ের বিবরণী
             </h1>
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs sm:text-sm font-bold text-slate-800">
               <span>শাখা অফিসের নাম : <strong>{shopInfo.branchName || 'চাম্পাফুল'}</strong></span>
@@ -344,10 +354,10 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
                     তারিখ
                   </th>
                   <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
-                    আয় (৳)
+                    আয় (৳)
                   </th>
                   <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
-                    ব্যয় (৳)
+                    ব্যয় (৳)
                   </th>
                   <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '12%', fontWeight: 'bold' }}>
                     ক্যাশ (৳)
@@ -362,62 +372,108 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
               </thead>
               <tbody>
                 {viewMode === 'daily' ? (
-                  /* Daily Grouped Rows (1 row per date, main subjects only) */
-                  dailySummaries.map((dRow) => (
-                    <tr
-                      key={dRow.date}
-                      className="font-medium text-slate-950"
-                      style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
-                    >
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {formatSimpleDate(dRow.date, useBengaliDigits)}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {dRow.dayIncome > 0 ? toBengaliNumber(dRow.dayIncome, useBengaliDigits) : '\u00A0'}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {dRow.dayExpense > 0 ? toBengaliNumber(dRow.dayExpense, useBengaliDigits) : '\u00A0'}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                        {dRow.entryCount > 0 ? toBengaliNumber(dRow.runningCash, useBengaliDigits) : '\u00A0'}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
-                        {dRow.mainCategoriesText || '-'}
-                      </td>
-                      <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
-                        -
-                      </td>
-                    </tr>
-                  ))
+                  /* Daily Grouped Rows (1 row per date) */
+                  dailySummaries.map((dRow, idx) => {
+                    const prevRow = dailySummaries[idx - 1];
+                    const showHeader = shouldShowMonthHeader(dRow.date, prevRow?.date);
+
+                    return (
+                      <React.Fragment key={dRow.date}>
+                        {showHeader && (
+                          <tr style={{ backgroundColor: '#0f172a', color: '#ffffff', fontWeight: 'bold', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                            <td
+                              colSpan={6}
+                              style={{
+                                border: '1px solid #000000',
+                                padding: '6px 12px',
+                                textAlign: 'center',
+                                backgroundColor: '#1e293b',
+                                color: '#f8fafc',
+                                fontWeight: '900',
+                                fontSize: '13px',
+                              }}
+                            >
+                              🗓️ {formatMonthYear(dRow.date, useBengaliDigits)} — এর হিসাব
+                            </td>
+                          </tr>
+                        )}
+                        <tr
+                          className="font-medium text-slate-950"
+                          style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+                        >
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                            {formatSimpleDate(dRow.date, useBengaliDigits)}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                            {dRow.dayIncome > 0 ? toBengaliNumber(dRow.dayIncome, useBengaliDigits) : '\u00A0'}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                            {dRow.dayExpense > 0 ? toBengaliNumber(dRow.dayExpense, useBengaliDigits) : '\u00A0'}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                            {dRow.entryCount > 0 ? toBengaliNumber(dRow.runningCash, useBengaliDigits) : '\u00A0'}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
+                            {dRow.mainCategoriesText || '-'}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
+                            -
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })
                 ) : (
                   /* Individual Transaction Rows */
                   transactionsWithRunningCash.map((tx, idx) => {
                     const isInc = tx.type === 'income';
+                    const prevTx = transactionsWithRunningCash[idx - 1];
+                    const showHeader = shouldShowMonthHeader(tx.date, prevTx?.date);
+
                     return (
-                      <tr
-                        key={tx.id || idx}
-                        className="font-medium text-slate-950"
-                        style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
-                      >
-                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                          {formatSimpleDate(tx.date, useBengaliDigits)}
-                        </td>
-                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                          {isInc ? toBengaliNumber(tx.amount, useBengaliDigits) : '\u00A0'}
-                        </td>
-                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                          {!isInc && tx.amount > 0 ? toBengaliNumber(tx.amount, useBengaliDigits) : '\u00A0'}
-                        </td>
-                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
-                          {toBengaliNumber(tx.calculatedCash, useBengaliDigits)}
-                        </td>
-                        <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
-                          {!isInc ? (tx.category || '-') : '-'}
-                        </td>
-                        <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
-                          {tx.remarks || tx.customerName || '-'}
-                        </td>
-                      </tr>
+                      <React.Fragment key={tx.id || idx}>
+                        {showHeader && (
+                          <tr style={{ backgroundColor: '#0f172a', color: '#ffffff', fontWeight: 'bold', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                            <td
+                              colSpan={6}
+                              style={{
+                                border: '1px solid #000000',
+                                padding: '6px 12px',
+                                textAlign: 'center',
+                                backgroundColor: '#1e293b',
+                                color: '#f8fafc',
+                                fontWeight: '900',
+                                fontSize: '13px',
+                              }}
+                            >
+                              🗓️ {formatMonthYear(tx.date, useBengaliDigits)} — এর হিসাব
+                            </td>
+                          </tr>
+                        )}
+                        <tr
+                          className="font-medium text-slate-950"
+                          style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+                        >
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                            {formatSimpleDate(tx.date, useBengaliDigits)}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                            {isInc ? toBengaliNumber(tx.amount, useBengaliDigits) : '\u00A0'}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                            {!isInc && tx.amount > 0 ? toBengaliNumber(tx.amount, useBengaliDigits) : '\u00A0'}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center', fontWeight: 'bold' }}>
+                            {toBengaliNumber(tx.calculatedCash, useBengaliDigits)}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'left', fontWeight: 'bold' }}>
+                            {!isInc ? (tx.category || '-') : '-'}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '5px 4px', textAlign: 'center' }}>
+                            {tx.remarks || tx.customerName || '-'}
+                          </td>
+                        </tr>
+                      </React.Fragment>
                     );
                   })
                 )}
