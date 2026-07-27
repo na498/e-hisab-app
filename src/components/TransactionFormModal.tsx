@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, PlusCircle, Calendar, Tag, FileText, User, Clock, CreditCard, Edit3 } from 'lucide-react';
+import { X, Save, PlusCircle, Calendar, Tag, FileText, User, Clock, CreditCard, Edit3, Store } from 'lucide-react';
 import { Transaction, TransactionType, CategoryType } from '../types';
 import { formatShortMonthDay } from '../utils/formatters';
 import { DEFAULT_INCOME_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES } from '../utils/constants';
@@ -45,7 +45,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   const [time, setTime] = useState<string>(
     new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
   );
-  
+
   // Category States
   const [category, setCategory] = useState<string>('ফটোকপি ও প্রিন্ট');
   const [isCustomCategory, setIsCustomCategory] = useState<boolean>(false);
@@ -63,10 +63,9 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       setType(editingTransaction.type);
       setDate(editingTransaction.date);
       setTime(editingTransaction.time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
-      
+
       const availableCategories = editingTransaction.type === 'income' ? incomeCategories : expenseCategories;
-      
-      // Check if existing category is custom or in default list
+
       if (availableCategories.includes(editingTransaction.category)) {
         setCategory(editingTransaction.category);
         setIsCustomCategory(false);
@@ -111,15 +110,30 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     }
   };
 
+  // দোকান বন্ধের দিন অটো সেট করার শর্টকাট ফাংশন
+  const handleSetShopClosed = () => {
+    setAmount('0');
+    setIsCustomCategory(true);
+    setCustomCategoryName('দোকান বন্ধ');
+    setDescription('দোকান বন্ধ ছিল');
+    setRemarks('ছুটি / বন্ধ');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmt = parseFloat(amount);
+    
+    // ০ টাকা অনুমোদিত, কিন্তু নেগেটিভ বা খালি থাকা যাবে না
     if (isNaN(parsedAmt) || parsedAmt < 0) return;
 
-    // Final category determination
-    const finalCategory = isCustomCategory 
-      ? (customCategoryName.trim() || 'অন্যান্য') 
+    // ০ টাকা হলে এবং ক্যাটাগরি কাস্টম না থাকলে 'দোকান বন্ধ' ডিফল্ট হিসেবে নেওয়া
+    let finalCategory = isCustomCategory
+      ? (customCategoryName.trim() || 'অন্যান্য')
       : category;
+
+    if (parsedAmt === 0 && !isCustomCategory && !customCategoryName) {
+      finalCategory = 'দোকান বন্ধ';
+    }
 
     const displayDateStr = formatShortMonthDay(date, useBengaliDigits);
 
@@ -131,7 +145,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       amount: parsedAmt,
       category: finalCategory as CategoryType,
       paymentMethod,
-      description: description.trim(),
+      description: description.trim() || (parsedAmt === 0 ? 'দোকান বন্ধ ছিল' : ''),
       remarks: remarks.trim(),
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
@@ -160,6 +174,22 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+          
+          {/* Quick Action: Shop Closed Button */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-amber-900 text-xs font-bold">
+              <Store className="w-4 h-4 text-amber-600" />
+              <span>আজকে দোকান বন্ধ ছিল?</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleSetShopClosed}
+              className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+            >
+              ০ ৳ (দোকান বন্ধ সেট করুন)
+            </button>
+          </div>
+
           {/* Income / Expense Toggle */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -297,7 +327,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
               <input
                 type="text"
                 required
-                placeholder="যেমন: ওয়াইফাই বিল, ল্যাপটপ মেরামত ইত্যাদি..."
+                placeholder="যেমন: ওয়াইফাই বিল, দোকান বন্ধ ইত্যাদি..."
                 value={customCategoryName}
                 onChange={(e) => setCustomCategoryName(e.target.value)}
                 className="w-full text-xs bg-white border border-indigo-300 rounded-lg px-3 py-2 text-slate-900 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -313,7 +343,7 @@ export const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
             </label>
             <input
               type="text"
-              placeholder="যেমন: ফটোস্ট্যাট ৫০ কপি ও প্রশ্নপ্রত্র টাইপ"
+              placeholder="যেমন: ফটোস্ট্যাট ৫০ কপি বা দোকান বন্ধ ছিল"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full text-sm bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
