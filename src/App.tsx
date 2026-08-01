@@ -15,6 +15,7 @@ import {
   getLastSyncTime,
   supabase,
 } from './utils/storage';
+import { isSupabaseConfigured } from './utils/supabase';
 import {
   Transaction,
   CustomerDue,
@@ -74,7 +75,7 @@ export default function App() {
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   
-  // 🟢 সিকিউরড লগইন স্টেট ইনিশিয়ালাইজেশন
+  // 🟢 সিকিউরড লগইন স্টেট ইনিশিয়ালাইজেশন
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return sessionStorage.getItem('e_hisab_admin_authenticated') === 'true';
   });
@@ -92,7 +93,7 @@ export default function App() {
     window.location.href = window.location.pathname; // সফট রিলোডের বদলে হার্ড রিডাইরেক্ট
   };
 
-  // 🟢 ডাটা লোড করার কেন্দ্রীয় ফাংশন
+// 🟢 ডাটা লোড করার কেন্দ্রীয় ফাংশন
   const fetchAllData = useCallback(async () => {
     // যদি ইউজার লগইন করা না থাকে, তবে ডাটা ফেচ বা লোড হবে না
     if (sessionStorage.getItem('e_hisab_admin_authenticated') !== 'true') return;
@@ -125,6 +126,20 @@ export default function App() {
   useEffect(() => {
     fetchAllData();
 
+    if (!isSupabaseConfigured) {
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          fetchAllData();
+        }
+      };
+      window.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('focus', handleVisibilityChange);
+      return () => {
+        window.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('focus', handleVisibilityChange);
+      };
+    }
+
     const channel = supabase
       .channel('e-hisab-live-sync')
       .on(
@@ -138,8 +153,6 @@ export default function App() {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           console.log('Realtime sync connected!');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          supabase.removeChannel(channel);
         }
       });
 
@@ -359,7 +372,7 @@ export default function App() {
         displayDate: displayDateStr,
         type: 'income',
         amount,
-        category: 'বাকি আদায়',
+        category: 'বাকি আদায়',
         description: `বাকি আদায়: ${description}`,
         customerName,
         customerPhone,
@@ -560,16 +573,6 @@ export default function App() {
     updateNotificationsState(updated);
   };
 
-  const handleMarkAllNotificationsRead = () => {
-    const updated = notifications.map((n) => ({ ...n, read: true }));
-    updateNotificationsState(updated);
-  };
-
-  const handleDeleteNotification = (id: string) => {
-    const updated = notifications.filter((n) => n.id !== id);
-    updateNotificationsState(updated);
-  };
-
   const handleClearAllNotifications = () => {
     updateNotificationsState([]);
   };
@@ -709,6 +712,14 @@ export default function App() {
             </main>
           </div>
 
+          {/* Bottom Footer Credit Bar */}
+          <footer className="w-full bg-slate-900 text-slate-300 py-3 px-4 text-center border-t border-slate-800 shadow-inner print:hidden mt-auto z-10">
+            <div className="max-w-[1400px] mx-auto flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium tracking-wide">
+              <span>©2026 E-Center Designe & Developed by</span>
+              <strong className="text-amber-400 font-bold">MEHEDI HASAN SAKIB</strong>
+            </div>
+          </footer>
+
           <TransactionFormModal
             isOpen={isNewTxModalOpen}
             onClose={() => {
@@ -729,10 +740,7 @@ export default function App() {
             onClose={() => setIsNotificationDrawerOpen(false)}
             notifications={notifications}
             onMarkAsRead={handleMarkNotificationRead}
-            onMarkAllRead={handleMarkAllNotificationsRead}
             onClearAll={handleClearAllNotifications}
-            onDeleteNotification={handleDeleteNotification}
-            onNavigateTab={(tab) => setActiveTab(tab)}
           />
         </>
       )}

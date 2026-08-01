@@ -85,9 +85,23 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
   const currentPresets = settings.quickPresets && settings.quickPresets.length > 0
     ? settings.quickPresets
     : DEFAULT_PRESETS;
-  const currentCustomCats = settings.customCategories || [];
-  const currentCustomIncomeCats = settings.customIncomeCategories || settings.customCategories || [];
-  const currentCustomExpenseCats = settings.customExpenseCategories || [];
+  
+  // Combine all categories without distinguishing default/custom labels
+  const hiddenCats = settings.hiddenCategories || [];
+
+  const currentIncomeCats = Array.from(
+    new Set([
+      ...DEFAULT_INCOME_CATEGORIES.filter(c => !hiddenCats.includes(c)),
+      ...(settings.customIncomeCategories || settings.customCategories || [])
+    ])
+  );
+
+  const currentExpenseCats = Array.from(
+    new Set([
+      ...DEFAULT_EXPENSE_CATEGORIES.filter(c => !hiddenCats.includes(c)),
+      ...(settings.customExpenseCategories || [])
+    ])
+  );
 
   const [newPresetTitle, setNewPresetTitle] = useState('');
   const [newPresetCategory, setNewPresetCategory] = useState(DEFAULT_CATEGORIES[0]);
@@ -104,7 +118,7 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
   const [editPresetColor, setEditPresetColor] = useState('emerald');
   const [editPresetIcon, setEditPresetIcon] = useState('Printer');
 
-  // Custom Category states for Income and Expense separately
+  // Custom Category inputs for Income and Expense
   const [newIncomeCatInput, setNewIncomeCatInput] = useState('');
   const [newExpenseCatInput, setNewExpenseCatInput] = useState('');
 
@@ -254,19 +268,16 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
     const catName = newIncomeCatInput.trim();
     if (!catName) return;
 
-    if (
-      DEFAULT_INCOME_CATEGORIES.includes(catName as any) ||
-      currentCustomIncomeCats.includes(catName)
-    ) {
+    if (currentIncomeCats.includes(catName)) {
       alert('এই আয়ের ক্যাটাগরি নাম আগেই আছে!');
       return;
     }
 
-    const updatedIncomeCats = [...currentCustomIncomeCats, catName];
+    const updatedIncomeCats = [...(settings.customIncomeCategories || settings.customCategories || []), catName];
     onUpdateSettings({
       ...settings,
       customIncomeCategories: updatedIncomeCats,
-      customCategories: Array.from(new Set([...currentCustomCats, catName])),
+      customCategories: Array.from(new Set([...(settings.customCategories || []), catName])),
     });
     setNewIncomeCatInput('');
     showPresetMsg(`নতুন আয়ের ক্যাটাগরি '${catName}' যোগ হয়েছে!`);
@@ -277,65 +288,54 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
     const catName = newExpenseCatInput.trim();
     if (!catName) return;
 
-    if (
-      DEFAULT_EXPENSE_CATEGORIES.includes(catName as any) ||
-      currentCustomExpenseCats.includes(catName)
-    ) {
+    if (currentExpenseCats.includes(catName)) {
       alert('এই ব্যয়ের ক্যাটাগরি নাম আগেই আছে!');
       return;
     }
 
-    const updatedExpenseCats = [...currentCustomExpenseCats, catName];
+    const updatedExpenseCats = [...(settings.customExpenseCategories || []), catName];
     onUpdateSettings({
       ...settings,
       customExpenseCategories: updatedExpenseCats,
-      customCategories: Array.from(new Set([...currentCustomCats, catName])),
+      customCategories: Array.from(new Set([...(settings.customCategories || []), catName])),
     });
     setNewExpenseCatInput('');
     showPresetMsg(`নতুন ব্যয়ের ক্যাটাগরি '${catName}' যোগ হয়েছে!`);
-  };
-
-  const hiddenCats = settings.hiddenCategories || [];
-
-  const handleToggleHideDefaultCategory = (catName: string) => {
-    const isHidden = hiddenCats.includes(catName);
-    const updatedHidden = isHidden
-      ? hiddenCats.filter((c) => c !== catName)
-      : [...hiddenCats, catName];
-
-    onUpdateSettings({
-      ...settings,
-      hiddenCategories: updatedHidden,
-    });
-
-    showPresetMsg(
-      isHidden
-        ? `ক্যাটাগরি '${catName}' পুনরায় সক্রিয় করা হয়েছে!`
-        : `ক্যাটাগরি '${catName}' তালিকা থেকে সরিয়ে নেওয়া হয়েছে!`
-    );
   };
 
   const handleConfirmDeleteCustomCategory = () => {
     if (!deleteCategoryInfo) return;
     const { name: catName, isExpense } = deleteCategoryInfo;
 
-    if (DEFAULT_CATEGORIES.includes(catName as any)) {
-      handleToggleHideDefaultCategory(catName);
-    } else if (isExpense) {
-      const updatedExpense = currentCustomExpenseCats.filter((c) => c !== catName);
-      onUpdateSettings({
-        ...settings,
-        customExpenseCategories: updatedExpense,
-        customCategories: currentCustomCats.filter((c) => c !== catName),
-      });
+    if (isExpense) {
+      if (DEFAULT_EXPENSE_CATEGORIES.includes(catName as any)) {
+        onUpdateSettings({
+          ...settings,
+          hiddenCategories: [...hiddenCats, catName],
+        });
+      } else {
+        const updatedExpense = (settings.customExpenseCategories || []).filter((c) => c !== catName);
+        onUpdateSettings({
+          ...settings,
+          customExpenseCategories: updatedExpense,
+          customCategories: (settings.customCategories || []).filter((c) => c !== catName),
+        });
+      }
       showPresetMsg(`ব্যয়ের ক্যাটাগরি '${catName}' মুছে ফেলা হয়েছে!`);
     } else {
-      const updatedIncome = currentCustomIncomeCats.filter((c) => c !== catName);
-      onUpdateSettings({
-        ...settings,
-        customIncomeCategories: updatedIncome,
-        customCategories: currentCustomCats.filter((c) => c !== catName),
-      });
+      if (DEFAULT_INCOME_CATEGORIES.includes(catName as any)) {
+        onUpdateSettings({
+          ...settings,
+          hiddenCategories: [...hiddenCats, catName],
+        });
+      } else {
+        const updatedIncome = (settings.customIncomeCategories || settings.customCategories || []).filter((c) => c !== catName);
+        onUpdateSettings({
+          ...settings,
+          customIncomeCategories: updatedIncome,
+          customCategories: (settings.customCategories || []).filter((c) => c !== catName),
+        });
+      }
       showPresetMsg(`আয়ের ক্যাটাগরি '${catName}' মুছে ফেলা হয়েছে!`);
     }
     setDeleteCategoryInfo(null);
@@ -447,7 +447,7 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
   };
 
   const allCategories = Array.from(
-    new Set([...DEFAULT_CATEGORIES, ...currentCustomCats])
+    new Set([...currentIncomeCats, ...currentExpenseCats])
   );
 
   return (
@@ -553,7 +553,7 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
         </form>
       </div>
 
-      {/* NEW: Month Start Cycle Settings */}
+      {/* Month Start Cycle Settings */}
       <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-5 sm:p-6">
         <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
@@ -607,7 +607,7 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
         </form>
       </div>
 
-      {/* NEW: Admin Quick Presets & Categories Manager */}
+      {/* Admin Quick Presets & Categories Manager */}
       <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-5 sm:p-6 space-y-6">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
@@ -736,7 +736,7 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
                     onChange={(e) => setEditPresetCategory(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    {[...DEFAULT_CATEGORIES, ...currentCustomCats].map((cat) => (
+                    {allCategories.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>
@@ -900,15 +900,15 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
           </form>
         </div>
 
-        {/* All Categories Manager (Income & Expense Separately) */}
+        {/* All Categories Manager (Unified list without Default/Custom labels) */}
         <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
               <ListPlus className="w-4 h-4 text-emerald-800" />
-              <span>ক্যাটাগরি সমূহ ও ডিলিট অপশন (Category Management):</span>
+              <span>ক্যাটাগরি সমূহ ব্যবস্থাপনা (Category Management):</span>
             </h3>
             <span className="text-[11px] text-slate-500 font-medium">
-              আয় ও ব্যয়ের জন্য আলাদা আলাদা ক্যাটাগরি যোগ ও নিয়ন্ত্রণ করুন
+              আপনার প্রয়োজন অনুযায়ী আয় ও ব্যয়ের ক্যাটাগরি তৈরি ও নিয়ন্ত্রণ করুন
             </span>
           </div>
 
@@ -925,11 +925,11 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
                 </span>
               </div>
 
-              {/* Add Custom Income Category Form */}
+              {/* Add Income Category Form */}
               <form onSubmit={handleAddCustomIncomeCategory} className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="নতুন আয়ের ক্যাটাগরি (যেমন: পাসপোর্ট সেবা, ভোটার আইডি)"
+                  placeholder="নতুন আয়ের ক্যাটাগরি নাম লিখুন"
                   value={newIncomeCatInput}
                   onChange={(e) => setNewIncomeCatInput(e.target.value)}
                   className="flex-1 text-xs bg-white border border-emerald-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
@@ -942,75 +942,27 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
                 </button>
               </form>
 
-              {/* Default Income Categories List */}
+              {/* Income Categories List */}
               <div>
-                <span className="text-[11px] font-bold text-emerald-900/80 block mb-1.5">
-                  সিস্টেমের আয়ের ডিফল্ট ক্যাটাগরি:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {DEFAULT_INCOME_CATEGORIES.map((cat) => {
-                    const isHidden = hiddenCats.includes(cat);
-                    return (
-                      <span
-                        key={cat}
-                        className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1.5 border transition-all ${
-                          isHidden
-                            ? 'bg-slate-200 text-slate-400 line-through border-slate-300'
-                            : 'bg-white border-emerald-300 text-slate-800 shadow-2xs'
-                        }`}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {currentIncomeCats.map((cat) => (
+                    <span
+                      key={cat}
+                      className="px-2.5 py-1 bg-white border border-emerald-300 text-slate-800 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <span>{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteCategoryInfo({ name: cat, isExpense: false })}
+                        className="text-slate-400 hover:text-rose-600 font-bold p-0.5 hover:bg-rose-50 rounded cursor-pointer"
+                        title="ক্যাটাগরি মুছুন"
                       >
-                        <span>{cat}</span>
-                        {isHidden ? (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleHideDefaultCategory(cat)}
-                            className="text-emerald-700 hover:text-emerald-900 text-[11px] font-extrabold ml-1 underline cursor-pointer no-underline"
-                            title="পুনরায় সক্রিয় করুন"
-                          >
-                            + পুনঃসক্রিয়
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setDeleteCategoryInfo({ name: cat, isExpense: false })}
-                            className="text-slate-400 hover:text-rose-600 font-bold p-0.5 hover:bg-rose-50 rounded cursor-pointer"
-                            title="ক্যাটাগরি মুছুন"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </span>
-                    );
-                  })}
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
                 </div>
               </div>
-
-              {/* Custom Income Categories List */}
-              {currentCustomIncomeCats.length > 0 && (
-                <div className="pt-1">
-                  <span className="text-[11px] font-bold text-emerald-800 block mb-1.5">
-                    ব্যবহারকারীর তৈরি কাস্টম আয়ের ক্যাটাগরি:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {currentCustomIncomeCats.map((cat) => (
-                      <span
-                        key={cat}
-                        className="px-2.5 py-1 bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-2xs"
-                      >
-                        <span>{cat}</span>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteCategoryInfo({ name: cat, isExpense: false })}
-                          className="text-emerald-600 hover:text-rose-600 font-bold p-0.5 hover:bg-emerald-200/80 rounded cursor-pointer"
-                          title="ক্যাটাগরি মুছুন"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Expense Categories Section */}
@@ -1027,11 +979,11 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
                 </span>
               </div>
 
-              {/* Add Custom Expense Category Form */}
+              {/* Add Expense Category Form */}
               <form onSubmit={handleAddCustomExpenseCategory} className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="নতুন ব্যয়ের ক্যাটাগরি (যেমন: নাস্তা বিল, পরিচ্ছন্নতা খরচ)"
+                  placeholder="নতুন ব্যয়ের ক্যাটাগরি নাম লিখুন"
                   value={newExpenseCatInput}
                   onChange={(e) => setNewExpenseCatInput(e.target.value)}
                   className="flex-1 text-xs bg-white border border-rose-300 rounded-lg p-2 font-bold focus:ring-2 focus:ring-rose-500 focus:outline-none"
@@ -1044,75 +996,27 @@ export const SettingsBackup: React.FC<SettingsBackupProps> = ({
                 </button>
               </form>
 
-              {/* Default Expense Categories List */}
+              {/* Expense Categories List */}
               <div>
-                <span className="text-[11px] font-bold text-rose-900/80 block mb-1.5">
-                  সিস্টেমের ব্যয়ের ডিফল্ট ক্যাটাগরি:
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {DEFAULT_EXPENSE_CATEGORIES.map((cat) => {
-                    const isHidden = hiddenCats.includes(cat);
-                    return (
-                      <span
-                        key={cat}
-                        className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1.5 border transition-all ${
-                          isHidden
-                            ? 'bg-slate-200 text-slate-400 line-through border-slate-300'
-                            : 'bg-white border-rose-300 text-slate-800 shadow-2xs'
-                        }`}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {currentExpenseCats.map((cat) => (
+                    <span
+                      key={cat}
+                      className="px-2.5 py-1 bg-white border border-rose-300 text-slate-800 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <span>{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteCategoryInfo({ name: cat, isExpense: true })}
+                        className="text-slate-400 hover:text-rose-600 font-bold p-0.5 hover:bg-rose-50 rounded cursor-pointer"
+                        title="ক্যাটাগরি মুছুন"
                       >
-                        <span>{cat}</span>
-                        {isHidden ? (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleHideDefaultCategory(cat)}
-                            className="text-emerald-700 hover:text-emerald-900 text-[11px] font-extrabold ml-1 underline cursor-pointer no-underline"
-                            title="পুনরায় সক্রিয় করুন"
-                          >
-                            + পুনঃসক্রিয়
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setDeleteCategoryInfo({ name: cat, isExpense: true })}
-                            className="text-slate-400 hover:text-rose-600 font-bold p-0.5 hover:bg-rose-50 rounded cursor-pointer"
-                            title="ক্যাটাগরি মুছুন"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </span>
-                    );
-                  })}
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
                 </div>
               </div>
-
-              {/* Custom Expense Categories List */}
-              {currentCustomExpenseCats.length > 0 && (
-                <div className="pt-1">
-                  <span className="text-[11px] font-bold text-rose-800 block mb-1.5">
-                    ব্যবহারকারীর তৈরি কাস্টম ব্যয়ের ক্যাটাগরি:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {currentCustomExpenseCats.map((cat) => (
-                      <span
-                        key={cat}
-                        className="px-2.5 py-1 bg-rose-100 border border-rose-300 text-rose-900 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-2xs"
-                      >
-                        <span>{cat}</span>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteCategoryInfo({ name: cat, isExpense: true })}
-                          className="text-rose-600 hover:text-rose-800 font-bold p-0.5 hover:bg-rose-200/80 rounded cursor-pointer"
-                          title="ক্যাটাগরি মুছুন"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
