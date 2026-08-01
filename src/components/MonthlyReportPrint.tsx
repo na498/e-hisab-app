@@ -717,13 +717,13 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
           <div className="sig-box text-center">
             <div className="sig-line border-t-2 border-black mb-1 w-48 mx-auto"></div>
             <span className="text-sm font-black block">{shopInfo.managerName || 'মাসুম বিল্লাহ'}</span>
-            <span className="text-xs font-semibold text-slate-700">ব্যবস্থাপক</span>
+            <span className="text-xs font-semibold text-slate-700">দোকান পরিচালক</span>
           </div>
 
           <div className="sig-box text-center">
             <div className="sig-line border-t-2 border-black mb-1 w-48 mx-auto"></div>
             <span className="text-sm font-black block">{shopInfo.ownerName || 'আলহাজ্ব সিরাজুল ইসলাম গাইন'}</span>
-            <span className="text-xs font-semibold text-slate-700">স্বত্বাধিকারী</span>
+            <span className="text-xs font-semibold text-slate-700">দোকান মালিক</span>
           </div>
         </div>
       </div>
