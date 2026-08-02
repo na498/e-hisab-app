@@ -4,13 +4,13 @@ export type CategoryType =
   | 'ফটোকপি ও প্রিন্ট'
   | 'কম্পিউটার কম্পোজ'
   | 'ল্যামিনেটিং ও আইডি কার্ড'
-  | 'কাগজ ক্রয় (A4/Legal/Photo)'
+  | 'কাগজ ক্রয় (A4/Legal/Photo)'
   | 'মেশিন মেরামত ও সার্ভিসিং'
   | 'কালি ও টোনার (Ink/Toner)'
-  | 'বিদ্যুৎ ও ওয়াইফাই বিল'
-  | 'দোকান ভাড়া ও অন্যান্য'
-  | 'অন্যান্য আয়'
-  | 'বাকি আদায়';
+  | 'বিদ্যুৎ ও ওয়াইফাই বিল'
+  | 'দোকান ভাড়া ও অন্যান্য'
+  | 'অন্যান্য আয়'
+  | 'বাকি আদায়';
 
 export interface MemoItem {
   productName: string;
@@ -31,12 +31,13 @@ export interface Transaction {
   remarks?: string; // মন্তব্য
   customerName?: string;
   customerPhone?: string;
-  paymentMethod?: string; // 'ক্যাশ' | 'বিকাশ' | 'নগদ' | 'বকেয়া'
+  paymentMethod?: string; // 'ক্যাশ' | 'বিকাশ' | 'নগদ' | 'বকেয়া'
   deliveryAddress?: string;
   district?: string;
   deliveryCharge?: number;
   items?: MemoItem[];
   cashBalance?: number; // Calculated running cash balance
+  isOtherAccount?: boolean; // Flag for owner deposit/withdrawal or other account outside daily operational ledger
   createdAt: number;
 }
 
@@ -69,6 +70,9 @@ export interface ShopInfo {
   managerName: string;
   phone: string;
   address: string;
+  name?: string;
+  owner?: string;
+  logo?: string;
   storeSlogan?: string;
   storeLogo?: string;
   contactOffice?: string;
@@ -110,24 +114,4 @@ export interface AppNotification {
   type: 'due_alert' | 'cash_alert' | 'sync_alert' | 'info';
   date: string;
   read: boolean;
-}
-
-export interface ExtraExpense {
-  id: string;
-  month: string; // e.g., '2026-07'
-  date?: string;  // e.g., '2026-07-15' (Optional)
-  title: string;
-  amount: number;
-  type?: 'income' | 'expense'; // 'income' = মালিকের জমা/আয়, 'expense' = অন্যান্য খরচ
-  created_at?: string;
-}
-
-// Supabase-এর জন্য Extra Expense ইন্টারফেস (অপশনাল তারিখ সহ)
-export interface ExtraExpense {
-  id: string;
-  month: string; // e.g., '2026-07'
-  date?: string;  // e.g., '2026-07-15' (Optional/ঐচ্ছিক)
-  title: string;
-  amount: number;
-  created_at?: string;
 }

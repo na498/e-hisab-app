@@ -7,3 +7,67 @@
 body, html, button, input, select, textarea {
   font-family: 'Noto Sans Bengali', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 5mm 8mm 5mm 8mm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  #printable-monthly-sheet {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    min-height: 275mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+  }
+
+  #printable-monthly-sheet table th,
+  #printable-monthly-sheet table td {
+    padding-top: 3.5px !important;
+    padding-bottom: 3.5px !important;
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+  }
+
+  #printable-monthly-sheet h1 {
+    font-size: 18px !important;
+    line-height: 1.25 !important;
+  }
+
+  #printable-monthly-sheet h4 {
+    font-size: 12px !important;
+    margin-bottom: 3px !important;
+    padding-bottom: 2px !important;
+  }
+
+  table {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}

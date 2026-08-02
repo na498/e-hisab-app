@@ -684,6 +684,7 @@ export default function App() {
                   transactions={transactions}
                   shopInfo={shopInfo}
                   onDeleteTx={handleDeleteTransaction}
+                  onAddTx={handleSaveTransaction}
                   useBengaliDigits={settings?.useBengaliDigits ?? true}
                   monthStartDay={settings?.monthStartDay || 1}
                 />
@@ -715,7 +716,7 @@ export default function App() {
           {/* Bottom Footer Credit Bar */}
           <footer className="w-full bg-slate-900 text-slate-300 py-3 px-4 text-center border-t border-slate-800 shadow-inner print:hidden mt-auto z-10">
             <div className="max-w-[1400px] mx-auto flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium tracking-wide">
-              <span>©2026 E-Center Designe & Developed by</span>
+              <span>@2026E-Center Designe & Developed by</span>
               <strong className="text-amber-400 font-bold">MEHEDI HASAN SAKIB</strong>
             </div>
           </footer>
