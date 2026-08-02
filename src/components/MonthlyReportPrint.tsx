@@ -32,8 +32,26 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
     transactions.forEach((tx) => {
-      if (tx.date && tx.date.length >= 7) {
-        set.add(tx.date.substring(0, 7)); // YYYY-MM
+      if (!tx.date) return;
+      let yyyymm = '';
+      const cleanDate = tx.date.trim();
+      if (/^\d{4}-\d{2}/.test(cleanDate)) {
+        yyyymm = cleanDate.substring(0, 7);
+      } else {
+        const parts = cleanDate.split(/[-/]/);
+        if (parts.length === 3 && parts[2].length === 4) {
+          const yr = parts[2];
+          const p0 = parts[0].padStart(2, '0');
+          yyyymm = `${yr}-${p0}`;
+        } else {
+          const d = new Date(cleanDate);
+          if (!isNaN(d.getTime())) {
+            yyyymm = d.toISOString().substring(0, 7);
+          }
+        }
+      }
+      if (yyyymm && /^\d{4}-\d{2}$/.test(yyyymm)) {
+        set.add(yyyymm);
       }
     });
     const arr = Array.from(set).sort().reverse();
@@ -108,7 +126,39 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
   const monthTransactions = useMemo(() => {
     let list = [...transactions];
     if (selectedMonth !== 'all') {
-      list = list.filter((tx) => tx.date && tx.date.startsWith(selectedMonth));
+      const [selYear, selMonth] = selectedMonth.split('-');
+      list = list.filter((tx) => {
+        if (!tx.date) return false;
+        const cleanDate = tx.date.trim();
+        // Standard ISO check (YYYY-MM-DD or YYYY-MM)
+        if (cleanDate.startsWith(selectedMonth)) return true;
+
+        // Custom date formats like DD/MM/YYYY, MM/DD/YYYY, YYYY/MM/DD
+        const parts = cleanDate.split(/[-/]/);
+        if (parts.length === 3) {
+          // e.g. 07/01/2026 or 01/07/2026
+          if (parts[2] === selYear) {
+            const p0 = parts[0].padStart(2, '0');
+            const p1 = parts[1].padStart(2, '0');
+            if (p0 === selMonth || p1 === selMonth) return true;
+          }
+          // e.g. 2026/07/01
+          if (parts[0] === selYear) {
+            const p1 = parts[1].padStart(2, '0');
+            if (p1 === selMonth) return true;
+          }
+        }
+
+        // Fallback Date object parsing
+        const d = new Date(cleanDate);
+        if (!isNaN(d.getTime())) {
+          const yr = String(d.getFullYear());
+          const mn = String(d.getMonth() + 1).padStart(2, '0');
+          if (`${yr}-${mn}` === selectedMonth) return true;
+        }
+
+        return false;
+      });
     }
     return list.sort((a, b) => a.createdAt - b.createdAt);
   }, [transactions, selectedMonth]);
@@ -278,7 +328,29 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
       defaultDesc = 'মালিকের উত্তোলন';
     }
 
-    const finalDate = quickDate || new Date().toISOString().split('T')[0];
+    let finalDate = quickDate.trim();
+    if (!finalDate) {
+      finalDate = selectedMonth !== 'all' ? `${selectedMonth}-01` : new Date().toISOString().split('T')[0];
+    } else {
+      const parts = finalDate.split(/[-/]/);
+      if (parts.length === 3 && parts[2].length === 4) {
+        const yr = parts[2];
+        const p0 = parts[0].padStart(2, '0');
+        const p1 = parts[1].padStart(2, '0');
+        if (selectedMonth && selectedMonth !== 'all') {
+          const [, selMn] = selectedMonth.split('-');
+          if (p0 === selMn) {
+            finalDate = `${yr}-${p0}-${p1}`;
+          } else if (p1 === selMn) {
+            finalDate = `${yr}-${p1}-${p0}`;
+          } else {
+            finalDate = `${yr}-${p0}-${p1}`;
+          }
+        } else {
+          finalDate = `${yr}-${p0}-${p1}`;
+        }
+      }
+    }
     const finalDesc = quickDesc.trim() || defaultDesc;
 
     if (onAddTx) {
