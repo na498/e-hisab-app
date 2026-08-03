@@ -38,6 +38,7 @@ export interface Transaction {
   items?: MemoItem[];
   cashBalance?: number; // Calculated running cash balance
   isOtherAccount?: boolean; // Flag for owner deposit/withdrawal or other account outside daily operational ledger
+  reportMonth?: string; // Optional field specifying report month (e.g. YYYY-MM)
   createdAt: number;
 }
 

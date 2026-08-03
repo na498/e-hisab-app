@@ -128,6 +128,7 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
     if (selectedMonth !== 'all') {
       const [selYear, selMonth] = selectedMonth.split('-');
       list = list.filter((tx) => {
+        if (tx.reportMonth && tx.reportMonth === selectedMonth) return true;
         if (!tx.date) return false;
         const cleanDate = tx.date.trim();
         // Standard ISO check (YYYY-MM-DD or YYYY-MM)
@@ -328,34 +329,46 @@ export const MonthlyReportPrint: React.FC<MonthlyReportPrintProps> = ({
       defaultDesc = 'মালিকের উত্তোলন';
     }
 
-    let finalDate = quickDate.trim();
-    if (!finalDate) {
-      finalDate = selectedMonth !== 'all' ? `${selectedMonth}-01` : new Date().toISOString().split('T')[0];
-    } else {
-      const parts = finalDate.split(/[-/]/);
-      if (parts.length === 3 && parts[2].length === 4) {
-        const yr = parts[2];
-        const p0 = parts[0].padStart(2, '0');
-        const p1 = parts[1].padStart(2, '0');
-        if (selectedMonth && selectedMonth !== 'all') {
-          const [, selMn] = selectedMonth.split('-');
-          if (p0 === selMn) {
-            finalDate = `${yr}-${p0}-${p1}`;
-          } else if (p1 === selMn) {
-            finalDate = `${yr}-${p1}-${p0}`;
-          } else {
-            finalDate = `${yr}-${p0}-${p1}`;
+    let finalDate = '';
+    let reportMonthVal: string | undefined = undefined;
+
+    if (selectedMonth !== 'all') {
+      reportMonthVal = selectedMonth;
+      let dayStr = '01';
+      if (quickDate) {
+        const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+        const clean = quickDate.trim().replace(/[০-৯]/g, (w) => String(bengaliDigits.indexOf(w)));
+        const parts = clean.split(/[-/]/);
+        if (parts.length === 3) {
+          if (parts[0].length === 4) {
+            // YYYY-MM-DD
+            const d = parseInt(parts[2], 10);
+            if (!isNaN(d) && d >= 1 && d <= 31) dayStr = String(d).padStart(2, '0');
+          } else if (parts[2].length === 4) {
+            // DD/MM/YYYY or MM/DD/YYYY
+            const d0 = parseInt(parts[0], 10);
+            const d1 = parseInt(parts[1], 10);
+            if (!isNaN(d0) && d0 >= 1 && d0 <= 31) dayStr = String(d0).padStart(2, '0');
+            else if (!isNaN(d1) && d1 >= 1 && d1 <= 31) dayStr = String(d1).padStart(2, '0');
           }
         } else {
-          finalDate = `${yr}-${p0}-${p1}`;
+          const d = parseInt(clean, 10);
+          if (!isNaN(d) && d >= 1 && d <= 31) {
+            dayStr = String(d).padStart(2, '0');
+          }
         }
       }
+      finalDate = `${selectedMonth}-${dayStr}`;
+    } else {
+      finalDate = quickDate.trim() || new Date().toISOString().split('T')[0];
     }
+
     const finalDesc = quickDesc.trim() || defaultDesc;
 
     if (onAddTx) {
       onAddTx({
         date: finalDate,
+        reportMonth: reportMonthVal,
         displayDate: formatSimpleDate(finalDate, useBengaliDigits),
         type: txType,
         amount: numAmount,
